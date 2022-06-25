@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/oursky/github-actions-manager/pkg/cmd"
+	"github.com/oursky/github-actions-manager/pkg/dashboard"
 	"github.com/oursky/github-actions-manager/pkg/github"
 	"github.com/oursky/github-actions-manager/pkg/github/auth"
 	"github.com/oursky/github-actions-manager/pkg/github/runner"
@@ -30,6 +31,9 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	sync := runner.NewSynchronizer(logger, &config.GitHub.Runners, target)
 	modules = append(modules, sync)
+
+	dashboard := dashboard.NewServer(logger, &config.Dashboard, sync)
+	modules = append(modules, dashboard)
 
 	return modules, nil
 }

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="styles.css" rel="stylesheet" />
+    <title>Dashboard</title>
+  </head>
+  <body class="p-8 bg-sky-50 text-slate-800 text-base">
+    <h1 class="text-3xl font-bold mb-8">Dashboard</h1>
+
+    <main class="container mx-auto">
+      <h2 id="runners" class="text-xl font-medium mb-4">Runners</h2>
+
+      <div class="rounded bg-sky-100 border border-sky-700">
+        <table class="w-full">
+          <colgroup>
+            <col />
+            <col class="w-2/12 hidden sm:table-column" />
+          </colgroup>
+          <thead class="hidden sm:table-header-group text-sm text-slate-500">
+            <th class="font-medium border-b border-sky-700">Runners</th>
+            <th class="font-medium border-b border-sky-700">Status</th>
+          </thead>
+
+          {{- range $runner := .Runners }}
+          <tr
+            id="runner-{{ $runner.Name }}"
+            class="even:bg-sky-500/10"
+            data-id="{{ $runner.ID }}"
+          >
+            <td class="font-medium">
+              {{- if $runner.IsBusy }}
+              <span
+                class="inline-block sm:hidden mr-1 w-2 h-2 rounded-full bg-amber-600"
+              ></span>
+              {{- else if $runner.IsOnline }}
+              <span
+                class="inline-block sm:hidden mr-1 w-2 h-2 rounded-full bg-green-600"
+              ></span>
+              {{- else }}
+              <span
+                class="inline-block sm:hidden mr-1 w-2 h-2 rounded-full bg-slate-600"
+              ></span>
+              {{- end }}
+              <span class="align-middle mr-1">{{ $runner.Name }}</span>
+              <br class="inline sm:hidden" />
+
+              {{- range $label := $runner.Labels }}
+              <span
+                class="inline-block text-xs py-0.5 px-2 text-slate-600 border rounded-full border-slate-300"
+                >{{ $label }}</span
+              >
+              {{- end }}
+            </td>
+
+            <td class="hidden sm:table-cell text-sm">
+              {{- if $runner.IsBusy }}
+              <span class="dot mr-1.5 bg-amber-600"></span
+              ><span class="align-middle">Busy</span>
+              {{- else if $runner.IsOnline }}
+              <span class="dot mr-1.5 bg-green-600"></span
+              ><span class="align-middle">Online</span>
+              {{- else }}
+              <span class="dot mr-1.5 bg-slate-600"></span
+              ><span class="align-middle">Offline</span>
+              {{- end }}
+            </td>
+          </tr>
+          {{- end }}
+        </table>
+      </div>
+    </main>
+  </body>
+</html>

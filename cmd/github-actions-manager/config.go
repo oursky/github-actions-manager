@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/oursky/github-actions-manager/pkg/dashboard"
 	"github.com/oursky/github-actions-manager/pkg/github/auth"
 	"github.com/oursky/github-actions-manager/pkg/github/runner"
 	"github.com/oursky/github-actions-manager/pkg/utils/tomltypes"
@@ -14,7 +15,8 @@ import (
 )
 
 type Config struct {
-	GitHub GitHubConfig `toml:"github"`
+	GitHub    GitHubConfig     `toml:"github"`
+	Dashboard dashboard.Config `toml:"dashboard"`
 }
 
 type GitHubConfig struct {

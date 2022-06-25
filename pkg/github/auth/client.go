@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"golang.org/x/oauth2"
@@ -22,7 +22,7 @@ func NewClient(config *Config) (*http.Client, error) {
 	case TypeApp:
 		privKey := []byte(config.App.PrivateKey)
 		if len(privKey) == 0 {
-			key, err := ioutil.ReadFile(config.App.PrivateKeyPath)
+			key, err := os.ReadFile(config.App.PrivateKeyPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load app key: %w", err)
 			}
