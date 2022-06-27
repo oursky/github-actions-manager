@@ -11,14 +11,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/oursky/github-actions-manager/pkg/github/runner"
+	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 type RunnerState interface {
-	State() *runner.State
+	State() *runners.State
 }
 
 type Server struct {

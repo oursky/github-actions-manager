@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,14 +9,25 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func NewClient(config *Config) (*http.Client, error) {
-	var client *http.Client
+type TokenTransport struct {
+	*oauth2.Transport
+}
+
+type AppTransport struct {
+	*ghinstallation.Transport
+	AppsTransport *ghinstallation.AppsTransport
+}
+
+func NewTransport(config *Config, base http.RoundTripper) (http.RoundTripper, error) {
+	var transport http.RoundTripper
 	switch config.Type {
 	case TypeToken:
-		client = oauth2.NewClient(
-			context.Background(),
-			oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.Token}),
-		)
+		transport = TokenTransport{
+			Transport: &oauth2.Transport{
+				Base:   base,
+				Source: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: config.Token}),
+			},
+		}
 
 	case TypeApp:
 		privKey := []byte(config.App.PrivateKey)
@@ -29,19 +39,25 @@ func NewClient(config *Config) (*http.Client, error) {
 			privKey = key
 		}
 
-		rt, err := ghinstallation.New(http.DefaultTransport,
+		appTransport, err := ghinstallation.NewAppsTransport(http.DefaultTransport,
 			config.App.AppID,
-			config.App.InstallationID,
 			privKey,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load app key: %w", err)
 		}
-		client = &http.Client{Transport: rt}
+
+		transport = AppTransport{
+			Transport: ghinstallation.NewFromAppsTransport(
+				appTransport,
+				config.App.InstallationID,
+			),
+			AppsTransport: appTransport,
+		}
 
 	default:
 		return nil, fmt.Errorf("invalid auth type: %s", config.Type)
 	}
 
-	return client, nil
+	return transport, nil
 }

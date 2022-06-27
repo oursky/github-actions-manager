@@ -1,4 +1,4 @@
-package runner
+package runners
 
 type Instance struct {
 	ID       int64

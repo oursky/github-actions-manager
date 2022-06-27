@@ -7,7 +7,8 @@ import (
 
 	"github.com/oursky/github-actions-manager/pkg/dashboard"
 	"github.com/oursky/github-actions-manager/pkg/github/auth"
-	"github.com/oursky/github-actions-manager/pkg/github/runner"
+	"github.com/oursky/github-actions-manager/pkg/github/jobs"
+	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/utils/tomltypes"
 
 	"github.com/BurntSushi/toml"
@@ -23,7 +24,8 @@ type GitHubConfig struct {
 	TargetURL   string              `toml:"targetURL" validate:"required,url"`
 	HTTPTimeout *tomltypes.Duration `toml:"httpTimeout,omitempty"`
 	Auth        auth.Config         `toml:"auth"`
-	Runners     runner.Config       `toml:"runners"`
+	Runners     runners.Config      `toml:"runners"`
+	Jobs        jobs.Config         `toml:"jobs"`
 }
 
 func NewConfig(path string) (*Config, error) {

@@ -1,4 +1,4 @@
-package runner
+package runners
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/oursky/github-actions-manager/pkg/github"
-	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -71,14 +70,13 @@ func (s *Synchronizer) next(state *State) {
 }
 
 func (s *Synchronizer) run(ctx context.Context) {
-	syncInterval := defaults.Value(s.config.SyncInterval.Value(), 10*time.Second)
-	syncPageSize := defaults.Value(s.config.SyncPageSize, 100)
+	syncInterval := s.config.GetSyncInterval()
 
-	work := &syncWork{Synchronizer: s}
+	work := &syncWork{Synchronizer: s, pageSize: s.config.GetSyncPageSize()}
 	work.reset(1)
 
 	for {
-		state := work.do(ctx, syncPageSize)
+		state := work.do(ctx)
 		if state != nil {
 			s.next(state)
 			work.reset(state.Epoch + 1)
@@ -96,6 +94,7 @@ func (s *Synchronizer) run(ctx context.Context) {
 
 type syncWork struct {
 	*Synchronizer
+	pageSize int
 
 	epoch     int64
 	beginTime time.Time
@@ -110,9 +109,9 @@ func (s *syncWork) reset(epoch int64) {
 	s.page = 1
 }
 
-func (s *syncWork) do(ctx context.Context, pageSize int) *State {
+func (s *syncWork) do(ctx context.Context) *State {
 	s.logger.Info("fetching page", zap.Int("page", s.page))
-	runnersPage, nextPage, err := s.target.GetRunners(ctx, s.page, pageSize)
+	runnersPage, nextPage, err := s.target.GetRunners(ctx, s.page, s.pageSize)
 	if err != nil {
 		s.logger.Warn("failed to get runners", zap.Error(err))
 		return nil
