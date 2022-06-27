@@ -23,7 +23,11 @@
             <th class="font-medium border-b border-sky-700">Status</th>
           </thead>
 
-          {{- range $runner := .Runners }}
+          {{- if eq (len .Runners) 0 }}
+          <tr>
+            <td class="font-medium text-slate-600 text-sm">No runners found</td>
+          </tr>
+          {{- end }} {{- range $runner := .Runners }}
           <tr
             id="runner-{{ $runner.Name }}"
             class="even:bg-sky-500/10"
