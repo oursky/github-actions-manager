@@ -43,7 +43,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 	var modules []cmd.Module
 
 	runners := runners.NewSynchronizer(logger, &config.GitHub.Runners, target)
-	//modules = append(modules, sync)
+	modules = append(modules, runners)
 
 	jobs, err := jobs.NewSynchronizer(logger, &config.GitHub.Jobs, client)
 	if err != nil {
@@ -51,7 +51,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 	}
 	modules = append(modules, jobs)
 
-	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners)
+	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)
 
 	return modules, nil

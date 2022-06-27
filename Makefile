@@ -1,2 +1,2 @@
 styles:
-	npx tailwindcss -i pkg/dashboard/styles.css -o pkg/dashboard/assets/styles.css $(TW_ARGS)
+	cd pkg/dashboard && npx tailwindcss -i styles.css -o assets/styles.css $(TW_ARGS)

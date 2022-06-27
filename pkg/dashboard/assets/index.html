@@ -9,14 +9,91 @@
   <body class="p-8 bg-sky-50 text-slate-800 text-base">
     <h1 class="text-3xl font-bold mb-8">Dashboard</h1>
 
-    <main class="container mx-auto">
-      <h2 id="runners" class="text-xl font-medium mb-4">Runners</h2>
+    <main class="container mx-auto space-y-4">
+      <h2 id="runners" class="text-xl font-medium">Jobs</h2>
 
       <div class="rounded bg-sky-100 border border-sky-700">
-        <table class="w-full">
+        <table class="w-full table-fixed">
           <colgroup>
             <col />
-            <col class="w-2/12 hidden sm:table-column" />
+            <col class="w-2/12 min-w-[10rem] hidden sm:table-column" />
+          </colgroup>
+          <thead class="hidden sm:table-header-group text-sm text-slate-500">
+            <th class="font-medium border-b border-sky-700">Run / Job</th>
+            <th class="font-medium border-b border-sky-700">Status</th>
+          </thead>
+
+          {{- if eq (len .WorkflowRuns) 0 }}
+          <tr>
+            <td class="font-medium text-slate-600 text-sm">No jobs found</td>
+          </tr>
+          {{- end }} {{- range $run := .WorkflowRuns }}
+          <tbody class="even:bg-sky-500/10" id="run-{{ $run.ID }}">
+            <tr>
+              <td class="font-medium truncate">
+                <span class="sm:hidden">{{ template "status-dot" $run }}</span
+                ><span class="align-middle"
+                  ><span
+                    class="text-sm text-slate-600"
+                    title="{{$run.RepoOwner}}/{{$run.RepoName}}"
+                  >
+                    {{- $run.RepoName -}}
+                  </span>
+                  <a
+                    class="text-sky-900 underline decoration-dotted underline-offset-4"
+                    href="{{ $run.URL }}"
+                    target="_blank"
+                    >{{- $run.Name -}}</a
+                  >
+                </span>
+              </td>
+
+              <td class="hidden sm:table-cell text-sm">
+                {{- template "status" $run -}}
+              </td>
+            </tr>
+            {{- range $job := $run.Jobs }}
+            <tr id="job-{{ $job.ID }}" class="target:bg-slate-900/10">
+              <td class="font-medium truncate text-sm pl-7">
+                <span class="sm:hidden">{{ template "status-dot" $job }}</span
+                ><span class="align-middle text-sm"
+                  ><a
+                    class="text-sky-900 underline decoration-dotted underline-offset-4"
+                    href="{{ $job.URL }}"
+                    target="_blank"
+                    >{{- $job.Name -}}</a
+                  >
+                </span>
+                <span
+                  class="align-middle text-slate-500 font-normal ml-1"
+                  data-start="{{ $job.StartedAt | date `2006-01-02T15:04:05Z07:00` }}"
+                  data-complete="{{ if $job.CompletedAt }}{{ $job.CompletedAt | date `2006-01-02T15:04:05Z07:00` }}{{ end }}"
+                >
+                  {{- if $job.CompletedAt -}}
+                  <span>{{- $job.CompletedAt.Sub $job.StartedAt -}}</span>
+                  {{- else if ne $job.StartedAt nil -}}
+                  <span>{{- $job.StartedAt | ago -}}</span>
+                  {{- end -}}
+                </span>
+              </td>
+
+              <td class="hidden sm:table-cell text-sm">
+                {{- template "status" $job -}}
+              </td>
+            </tr>
+            {{- end }}
+          </tbody>
+          {{- end }}
+        </table>
+      </div>
+
+      <h2 id="runners" class="text-xl font-medium">Runners</h2>
+
+      <div class="rounded bg-sky-100 border border-sky-700">
+        <table class="w-full table-fixed">
+          <colgroup>
+            <col />
+            <col class="w-2/12 min-w-[10rem] hidden sm:table-column" />
           </colgroup>
           <thead class="hidden sm:table-header-group text-sm text-slate-500">
             <th class="font-medium border-b border-sky-700">Runners</th>
@@ -28,26 +105,17 @@
             <td class="font-medium text-slate-600 text-sm">No runners found</td>
           </tr>
           {{- end }} {{- range $runner := .Runners }}
-          <tr
-            id="runner-{{ $runner.Name }}"
-            class="even:bg-sky-500/10"
-            data-id="{{ $runner.ID }}"
-          >
+          <tr id="runner-{{ $runner.ID }}" class="even:bg-sky-500/10">
             <td class="font-medium">
-              {{- if $runner.IsBusy }}
-              <span
-                class="inline-block sm:hidden mr-1 w-2 h-2 rounded-full bg-amber-600"
-              ></span>
-              {{- else if $runner.IsOnline }}
-              <span
-                class="inline-block sm:hidden mr-1 w-2 h-2 rounded-full bg-green-600"
-              ></span>
-              {{- else }}
-              <span
-                class="inline-block sm:hidden mr-1 w-2 h-2 rounded-full bg-slate-600"
-              ></span>
-              {{- end }}
-              <span class="align-middle mr-1">{{ $runner.Name }}</span>
+              <span class="sm:hidden">
+                {{- if $runner.IsBusy }}
+                <span class="dot mr-1 bg-amber-600"></span>
+                {{- else if $runner.IsOnline }}
+                <span class="dot mr-1 bg-green-600"></span>
+                {{- else }}
+                <span class="dot mr-1 bg-slate-600"></span>
+                {{- end }} </span
+              ><span class="align-middle mr-1">{{ $runner.Name }}</span>
               <br class="inline sm:hidden" />
 
               {{- range $label := $runner.Labels }}
@@ -55,6 +123,15 @@
                 class="inline-block text-xs py-0.5 px-2 text-slate-600 border rounded-full border-slate-300"
                 >{{ $label }}</span
               >
+              {{- end }}
+              <br />
+              {{- with $job := index $.RunnerJobMap $runner.ID }}
+              <a
+                class="text-sm text-slate-500 font-normal underline decoration-dotted underline-offset-4"
+                href="#job-{{ $job.ID }}"
+              >
+                {{- $job.RepoOwner }}/{{ $job.RepoName }}: {{ $job.Name -}}
+              </a>
               {{- end }}
             </td>
 
@@ -75,5 +152,65 @@
         </table>
       </div>
     </main>
+    <script>
+      const update = () => {
+        const elems = document.querySelectorAll("[data-start]");
+        for (const e of elems) {
+          const start = new Date(e.dataset.start);
+          const end = e.dataset.complete
+            ? new Date(e.dataset.complete)
+            : new Date();
+          const secs = Math.round((end - start) / 1000);
+
+          let text = (secs % 60) + "s";
+          if (secs > 60) {
+            text = Math.floor(secs / 60) + "m " + text;
+          }
+          e.textContent = text;
+        }
+      };
+      update();
+      setInterval(update, 1000);
+    </script>
   </body>
 </html>
+
+{{- define "status-dot" -}}
+<span>
+  {{- if eq .Status "queued" -}}
+  <span class="dot mr-1.5 bg-amber-600"></span>
+  {{- else if eq .Status "in_progress" -}}
+  <span class="dot mr-1.5">
+    <span class="absolute dot bg-amber-600"></span>
+    <span class="absolute dot bg-amber-600 animate-ping"></span>
+  </span>
+  {{- else if eq .Conclusion "success" -}}
+  <span class="dot mr-1.5 bg-green-600"></span>
+  {{- else if eq .Conclusion "failure" -}}
+  <span class="dot mr-1.5 bg-red-900"></span>
+  {{- else -}}
+  <span class="dot mr-1.5 bg-slate-400"></span>
+  {{- end -}}
+</span>
+{{- end -}} {{- define "status" -}}
+<span>
+  {{- if eq .Status "queued" -}}
+  <span class="dot mr-1.5 bg-amber-600"></span
+  ><span class="align-middle">Pending</span>
+  {{- else if eq .Status "in_progress" -}}
+  <span class="dot mr-1.5">
+    <span class="absolute dot bg-amber-600"></span>
+    <span class="absolute dot bg-amber-600 animate-ping"></span> </span
+  ><span class="align-middle">In Progress</span>
+  {{- else if eq .Conclusion "success" -}}
+  <span class="dot mr-1.5 bg-green-600"></span
+  ><span class="align-middle">Succeed</span>
+  {{- else if eq .Conclusion "failure" -}}
+  <span class="dot mr-1.5 bg-red-900"></span
+  ><span class="align-middle">Failed</span>
+  {{- else -}}
+  <span class="dot mr-1.5 bg-slate-400"></span
+  ><span class="align-middle">{{ .Conclusion | title }}</span>
+  {{- end -}}
+</span>
+{{- end -}}

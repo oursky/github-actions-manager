@@ -614,6 +614,10 @@ td {
   vertical-align: middle;
 }
 
+.absolute {
+  position: absolute;
+}
+
 .mx-auto {
   margin-left: auto;
   margin-right: auto;
@@ -623,8 +627,8 @@ td {
   margin-bottom: 2rem;
 }
 
-.mb-4 {
-  margin-bottom: 1rem;
+.ml-1 {
+  margin-left: 0.25rem;
 }
 
 .mr-1 {
@@ -651,10 +655,6 @@ td {
   display: none;
 }
 
-.h-2 {
-  height: 0.5rem;
-}
-
 .w-full {
   width: 100%;
 }
@@ -663,8 +663,43 @@ td {
   width: 16.666667%;
 }
 
-.w-2 {
-  width: 0.5rem;
+.min-w-\[10rem\] {
+  min-width: 10rem;
+}
+
+.table-fixed {
+  table-layout: fixed;
+}
+
+@-webkit-keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  -webkit-animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+          animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rounded {
@@ -718,6 +753,16 @@ td {
   background-color: rgb(71 85 105 / var(--tw-bg-opacity));
 }
 
+.bg-red-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(127 29 29 / var(--tw-bg-opacity));
+}
+
+.bg-slate-400 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(148 163 184 / var(--tw-bg-opacity));
+}
+
 .p-8 {
   padding: 2rem;
 }
@@ -735,6 +780,10 @@ td {
 .py-0 {
   padding-top: 0px;
   padding-bottom: 0px;
+}
+
+.pl-7 {
+  padding-left: 1.75rem;
 }
 
 .align-middle {
@@ -774,6 +823,10 @@ td {
   font-weight: 500;
 }
 
+.font-normal {
+  font-weight: 400;
+}
+
 .text-slate-800 {
   --tw-text-opacity: 1;
   color: rgb(30 41 59 / var(--tw-text-opacity));
@@ -789,8 +842,31 @@ td {
   color: rgb(71 85 105 / var(--tw-text-opacity));
 }
 
+.text-sky-900 {
+  --tw-text-opacity: 1;
+  color: rgb(12 74 110 / var(--tw-text-opacity));
+}
+
+.underline {
+  -webkit-text-decoration-line: underline;
+          text-decoration-line: underline;
+}
+
+.decoration-dotted {
+  -webkit-text-decoration-style: dotted;
+          text-decoration-style: dotted;
+}
+
+.underline-offset-4 {
+  text-underline-offset: 4px;
+}
+
 .even\:bg-sky-500\/10:nth-child(even) {
   background-color: rgb(14 165 233 / 0.1);
+}
+
+.target\:bg-slate-900\/10:target {
+  background-color: rgb(15 23 42 / 0.1);
 }
 
 @media (min-width: 640px) {

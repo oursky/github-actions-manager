@@ -1,5 +1,5 @@
 module.exports = {
-  content: ["pkg/dashboard/assets/*.html"],
+  content: ["assets/*.html"],
   theme: {},
   plugins: [],
 };

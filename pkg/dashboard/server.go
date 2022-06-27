@@ -11,14 +11,21 @@ import (
 	"os"
 	"time"
 
+	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
+
+	"github.com/Masterminds/sprig/v3"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
-type RunnerState interface {
+type RunnersState interface {
 	State() *runners.State
+}
+
+type JobsState interface {
+	State() *jobs.State
 }
 
 type Server struct {
@@ -26,10 +33,11 @@ type Server struct {
 	server *http.Server
 	assets fs.FS
 
-	state RunnerState
+	runners RunnersState
+	jobs    JobsState
 }
 
-func NewServer(logger *zap.Logger, config *Config, state RunnerState) *Server {
+func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs JobsState) *Server {
 	logger = logger.Named("dashboard")
 
 	assets, _ := fs.Sub(assetsFS, "assets")
@@ -47,8 +55,9 @@ func NewServer(logger *zap.Logger, config *Config, state RunnerState) *Server {
 			Handler:      mux,
 			ErrorLog:     zap.NewStdLog(logger),
 		},
-		assets: assets,
-		state:  state,
+		assets:  assets,
+		runners: runners,
+		jobs:    jobs,
 	}
 
 	mux.HandleFunc("/", server.index)
@@ -100,7 +109,8 @@ func (s *Server) asset(rw http.ResponseWriter, name string, contentType string) 
 }
 
 func (s *Server) template(rw http.ResponseWriter, tplName string, data any) {
-	tpl, err := template.ParseFS(s.assets, tplName)
+	tpl := template.New(tplName).Funcs(sprig.FuncMap())
+	tpl, err := tpl.ParseFS(s.assets, tplName)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte(fmt.Sprintf("failed to load template: %s", err)))

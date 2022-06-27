@@ -116,7 +116,7 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 	state := &State{}
 	for _, run := range runMap {
 		sort.Slice(run.Jobs, func(i, j int) bool {
-			return run.Jobs[i].ID < run.Jobs[j].ID
+			return compareJob(run.Jobs[i], run.Jobs[j])
 		})
 		if len(run.Jobs) == 0 {
 			continue
@@ -124,8 +124,24 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 		state.WorkflowRuns = append(state.WorkflowRuns, run)
 	}
 	sort.Slice(state.WorkflowRuns, func(i, j int) bool {
-		return state.WorkflowRuns[i].CreatedAt.Before(state.WorkflowRuns[j].CreatedAt)
+		return compareJob(state.WorkflowRuns[i].Jobs[0], state.WorkflowRuns[j].Jobs[0])
 	})
 
 	return state
+}
+
+var statusOrder map[string]int = map[string]int{
+	"in_progress": 3,
+	"queued":      2,
+	"completed":   1,
+}
+
+func compareJob(a *WorkflowJob, b *WorkflowJob) bool {
+	aKey := statusOrder[a.Status]
+	bKey := statusOrder[b.Status]
+	if aKey != bKey {
+		return aKey > bKey
+	}
+
+	return a.ID < b.ID
 }
