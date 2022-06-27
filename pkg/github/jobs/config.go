@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	ReplayEnabled     bool                `toml:"replay_enabled,omitempty"`
 	RetentionPeriod   *tomltypes.Duration `toml:"retention_period,omitempty"`
 	SyncInterval      *tomltypes.Duration `toml:"syncInterval,omitempty"`
 	SyncPageSize      *int                `toml:"syncPageSize,omitempty" validate:"omitempty,min=1,max=100"`

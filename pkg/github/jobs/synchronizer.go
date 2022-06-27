@@ -29,17 +29,20 @@ type Synchronizer struct {
 func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client) (*Synchronizer, error) {
 	logger = logger.Named("jobs-sync")
 
-	source, err := webhook.NewSource(client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create webhook source: %w", err)
+	var replayer *webhook.Replayer
+	if config.ReplayEnabled {
+		source, err := webhook.NewSource(client)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create webhook source: %w", err)
+		}
+		replayer = webhook.NewReplayer(
+			logger,
+			source,
+			config.GetRetentionPeriod(),
+			config.GetSyncInterval(),
+			config.GetSyncPageSize(),
+		)
 	}
-	replayer := webhook.NewReplayer(
-		logger,
-		source,
-		config.GetRetentionPeriod(),
-		config.GetSyncInterval(),
-		config.GetSyncPageSize(),
-	)
 
 	server := webhook.NewServer(config.GetWebhookServerAddr(), config.WebhookSecret)
 
@@ -59,7 +62,9 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 	runs := make(chan webhook.Key)
 	jobs := make(chan webhook.Key)
 
-	s.replayer.Start(ctx, g, runs, jobs)
+	if s.replayer != nil {
+		s.replayer.Start(ctx, g, runs, jobs)
+	}
 	s.server.Start(ctx, g, runs, jobs)
 	g.Go(func() error {
 		s.run(ctx, runs, jobs)
