@@ -22,10 +22,11 @@ type Config struct {
 
 type GitHubConfig struct {
 	TargetURL   string              `toml:"targetURL" validate:"required,url"`
+	RPS         *float64            `toml:"rps,omitempty"`
 	HTTPTimeout *tomltypes.Duration `toml:"httpTimeout,omitempty"`
 	Auth        auth.Config         `toml:"auth"`
-	Runners     runners.Config      `toml:"runners"`
-	Jobs        jobs.Config         `toml:"jobs"`
+	Runners     runners.Config      `toml:"runners,omitempty"`
+	Jobs        jobs.Config         `toml:"jobs,omitempty"`
 }
 
 func NewConfig(path string) (*Config, error) {

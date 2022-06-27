@@ -12,12 +12,20 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
+	"github.com/oursky/github-actions-manager/pkg/utils/ratelimit"
+	"golang.org/x/time/rate"
 
 	"go.uber.org/zap"
 )
 
 func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
-	transport, err := auth.NewTransport(&config.GitHub.Auth, http.DefaultTransport)
+	transport, err := auth.NewTransport(
+		&config.GitHub.Auth,
+		ratelimit.NewTransport(
+			http.DefaultTransport,
+			rate.Limit(defaults.Value(config.GitHub.RPS, 1)),
+		),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot setup GitHub client: %w", err)
 	}

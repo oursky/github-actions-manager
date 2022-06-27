@@ -39,7 +39,7 @@ func NewTransport(config *Config, base http.RoundTripper) (http.RoundTripper, er
 			privKey = key
 		}
 
-		appTransport, err := ghinstallation.NewAppsTransport(http.DefaultTransport,
+		appTransport, err := ghinstallation.NewAppsTransport(base,
 			config.App.AppID,
 			privKey,
 		)
