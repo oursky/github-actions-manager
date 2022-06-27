@@ -15,6 +15,9 @@ type dataIndex struct {
 }
 
 func (s *Server) index(rw http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	isAll := r.Form.Has("all")
+
 	rState := s.runners.State()
 	var runners []runners.Instance
 	if rState != nil {
@@ -31,7 +34,7 @@ func (s *Server) index(rw http.ResponseWriter, r *http.Request) {
 	jobMap := make(map[int64]*jobs.WorkflowJob)
 	if jState != nil {
 		for _, run := range jState.WorkflowRuns {
-			if run.Status == "completed" {
+			if !isAll && run.Status == "completed" {
 				continue
 			}
 
