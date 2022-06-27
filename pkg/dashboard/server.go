@@ -13,7 +13,6 @@ import (
 
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
-	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
 
 	"github.com/Masterminds/sprig/v3"
 	"go.uber.org/zap"
@@ -49,7 +48,7 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs Jo
 	server := &Server{
 		logger: logger,
 		server: &http.Server{
-			Addr:         defaults.Value(config.Addr, "127.0.0.1:8000"),
+			Addr:         config.GetAddr(),
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
 			Handler:      mux,

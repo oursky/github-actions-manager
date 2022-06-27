@@ -18,6 +18,7 @@ type Synchronizer struct {
 	logger   *zap.Logger
 	config   *Config
 	replayer *webhook.Replayer
+	server   *webhook.Server
 	github   *github.Client
 
 	lock    *sync.RWMutex
@@ -40,10 +41,13 @@ func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client) (*
 		config.GetSyncPageSize(),
 	)
 
+	server := webhook.NewServer(config.GetWebhookServerAddr(), config.WebhookSecret)
+
 	return &Synchronizer{
 		logger:   logger,
 		config:   config,
 		replayer: replayer,
+		server:   server,
 		github:   github.NewClient(client),
 		lock:     new(sync.RWMutex),
 		state:    nil,
@@ -56,6 +60,7 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 	jobs := make(chan webhook.Key)
 
 	s.replayer.Start(ctx, g, runs, jobs)
+	s.server.Start(ctx, g, runs, jobs)
 	g.Go(func() error {
 		s.run(ctx, runs, jobs)
 		return nil
