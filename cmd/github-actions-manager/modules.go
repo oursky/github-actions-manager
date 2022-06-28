@@ -16,6 +16,8 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/slack"
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
 	"github.com/oursky/github-actions-manager/pkg/utils/ratelimit"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 
 	gh "github.com/google/go-github/v45/github"
 	"go.uber.org/zap"
@@ -23,6 +25,10 @@ import (
 )
 
 func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
+	registry := prometheus.NewPedanticRegistry()
+	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	registry.MustRegister(collectors.NewGoCollector())
+
 	transport, err := auth.NewTransport(
 		&config.GitHub.Auth,
 		ratelimit.NewTransport(
@@ -47,7 +53,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	var modules []cmd.Module
 
-	runners := runners.NewSynchronizer(logger, &config.GitHub.Runners, target)
+	runners := runners.NewSynchronizer(logger, &config.GitHub.Runners, target, registry)
 	modules = append(modules, runners)
 
 	jobs, err := jobs.NewSynchronizer(logger, &config.GitHub.Jobs, client)
@@ -73,7 +79,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)
 
-	api := api.NewServer(logger, &config.API)
+	api := api.NewServer(logger, &config.API, registry)
 	modules = append(modules, api)
 
 	return modules, nil

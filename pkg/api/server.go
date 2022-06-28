@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -17,7 +18,7 @@ type Server struct {
 	server *http.Server
 }
 
-func NewServer(logger *zap.Logger, config *Config) *Server {
+func NewServer(logger *zap.Logger, config *Config, gatherer prometheus.Gatherer) *Server {
 	logger = logger.Named("api")
 
 	mux := http.NewServeMux()
@@ -32,7 +33,9 @@ func NewServer(logger *zap.Logger, config *Config) *Server {
 		},
 	}
 
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
+		ErrorLog: zap.NewStdLog(logger.Named("prom")),
+	}))
 
 	return server
 }

@@ -6,24 +6,27 @@ import (
 
 	"github.com/oursky/github-actions-manager/pkg/github"
 	"github.com/oursky/github-actions-manager/pkg/utils/channels"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 type Synchronizer struct {
-	logger *zap.Logger
-	config *Config
-	target github.Target
-	state  *channels.Broadcaster[*State]
+	logger  *zap.Logger
+	config  *Config
+	target  github.Target
+	state   *channels.Broadcaster[*State]
+	metrics *metrics
 }
 
-func NewSynchronizer(logger *zap.Logger, config *Config, target github.Target) *Synchronizer {
+func NewSynchronizer(logger *zap.Logger, config *Config, target github.Target, registry *prometheus.Registry) *Synchronizer {
 	return &Synchronizer{
-		logger: logger.Named("runner-sync"),
-		config: config,
-		target: target,
-		state:  channels.NewBroadcaster[*State](nil),
+		logger:  logger.Named("runner-sync"),
+		config:  config,
+		target:  target,
+		state:   channels.NewBroadcaster[*State](nil),
+		metrics: newMetrics(registry),
 	}
 }
 
@@ -49,6 +52,7 @@ func (s *Synchronizer) run(ctx context.Context) {
 		state := work.do(ctx)
 		if state != nil {
 			s.state.Publish(state)
+			s.metrics.update(state)
 			work.reset(state.Epoch + 1)
 		}
 

@@ -1,11 +1,29 @@
 package runners
 
+import (
+	"strconv"
+
+	"github.com/oursky/github-actions-manager/pkg/utils/promutil"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
 type Instance struct {
 	ID       int64
 	Name     string
 	IsOnline bool
 	IsBusy   bool
 	Labels   []string
+}
+
+func (i *Instance) labels() prometheus.Labels {
+	labels := prometheus.Labels{
+		"runner_id":   strconv.FormatInt(i.ID, 10),
+		"runner_name": i.Name,
+	}
+	for _, l := range i.Labels {
+		labels["runner_label_"+promutil.SanitizeLabel(l)] = l
+	}
+	return labels
 }
 
 type State struct {
