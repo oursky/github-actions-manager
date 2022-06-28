@@ -110,7 +110,7 @@ func (s *syncWork) reset(epoch int64) {
 }
 
 func (s *syncWork) do(ctx context.Context) *State {
-	s.logger.Info("fetching page", zap.Int("page", s.page))
+	s.logger.Debug("fetching page", zap.Int("page", s.page))
 	runnersPage, nextPage, err := s.target.GetRunners(ctx, s.page, s.pageSize)
 	if err != nil {
 		s.logger.Warn("failed to get runners", zap.Error(err))
