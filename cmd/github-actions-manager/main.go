@@ -27,8 +27,6 @@ func main() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	logger.Debug("loaded config", zap.Any("config", config))
-
 	modules, err := initModules(logger, config)
 	if err != nil {
 		logger.Fatal("failed to init", zap.Error(err))
