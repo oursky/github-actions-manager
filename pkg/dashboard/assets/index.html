@@ -3,11 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="turbo-cache-control" content="no-cache" />
     <link href="styles.css" rel="stylesheet" />
     <title>Dashboard</title>
   </head>
   <body class="p-8 bg-sky-50 text-slate-800 text-base">
-    <h1 class="text-3xl font-bold mb-8">Dashboard</h1>
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold inline">Dashboard</h1>
+      <span class="ml-2 text-sm text-slate-500"
+        >last update:
+        <span data-reltime="{{ now | date `2006-01-02T15:04:05Z07:00` }}"
+          >now</span
+        >
+      </span>
+    </div>
 
     <main class="container mx-auto space-y-4">
       <h2 id="runners" class="text-xl font-medium">Jobs</h2>
@@ -152,10 +161,11 @@
         </table>
       </div>
     </main>
+
     <script>
+      const fmt = new Intl.RelativeTimeFormat();
       const update = () => {
-        const elems = document.querySelectorAll("[data-start]");
-        for (const e of elems) {
+        for (const e of document.querySelectorAll("[data-start]")) {
           const start = new Date(e.dataset.start);
           const end = e.dataset.complete
             ? new Date(e.dataset.complete)
@@ -168,9 +178,19 @@
           }
           e.textContent = text;
         }
+
+        for (const e of document.querySelectorAll("[data-reltime]")) {
+          const time = new Date(e.dataset.reltime);
+          const now = new Date();
+          const secs = Math.floor((time - now) / 1000);
+
+          e.textContent = fmt.format(secs, "second");
+        }
       };
       update();
       setInterval(update, 1000);
+
+      setTimeout(() => window.location.reload(), 10000);
     </script>
   </body>
 </html>
