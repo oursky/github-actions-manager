@@ -85,6 +85,7 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 		case key := <-runKeys:
 			if _, err := s.updateRun(ctx, key, runs); err != nil {
 				s.logger.Warn("failed to get workflow run",
+					zap.Error(err),
 					zap.String("owner", key.RepoOwner),
 					zap.String("repo", key.RepoName),
 					zap.Int64("id", key.ID),
@@ -95,6 +96,7 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 			job, err := s.updateJob(ctx, key, jobs)
 			if err != nil {
 				s.logger.Warn("failed to get workflow job",
+					zap.Error(err),
 					zap.String("owner", key.RepoOwner),
 					zap.String("repo", key.RepoName),
 					zap.Int64("id", key.ID),
@@ -105,6 +107,7 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 			runKey := webhook.Key{ID: job.GetRunID(), RepoOwner: key.RepoOwner, RepoName: key.RepoName}
 			if _, err := s.updateRun(ctx, runKey, runs); err != nil {
 				s.logger.Warn("failed to get workflow run",
+					zap.Error(err),
 					zap.String("owner", key.RepoOwner),
 					zap.String("repo", key.RepoName),
 					zap.Int64("id", key.ID),
