@@ -55,17 +55,19 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 	}
 	modules = append(modules, jobs)
 
-	kv, err := kv.NewKubeConfigMapStore(logger, config.Store.KubeNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("cannot setup store: %w", err)
+	if !config.Slack.Disabled {
+		kv, err := kv.NewKubeConfigMapStore(logger, config.Store.KubeNamespace)
+		if err != nil {
+			return nil, fmt.Errorf("cannot setup store: %w", err)
+		}
+		modules = append(modules, kv)
+
+		slackApp := slack.NewApp(logger, &config.Slack, kv)
+		modules = append(modules, slackApp)
+
+		notifier := slack.NewNotifier(logger, slackApp, gh.NewClient(client), jobs)
+		modules = append(modules, notifier)
 	}
-	modules = append(modules, kv)
-
-	slackApp := slack.NewApp(logger, &config.Slack, kv)
-	modules = append(modules, slackApp)
-
-	notifier := slack.NewNotifier(logger, slackApp, gh.NewClient(client), jobs)
-	modules = append(modules, notifier)
 
 	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)
