@@ -8,16 +8,19 @@ import (
 
 	"github.com/google/go-github/v45/github"
 	"github.com/oursky/github-actions-manager/pkg/utils/channels"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 type Server struct {
+	logger *zap.Logger
 	addr   string
 	secret []byte
 }
 
-func NewServer(addr string, secret string) *Server {
+func NewServer(logger *zap.Logger, addr string, secret string) *Server {
 	server := &Server{
+		logger: logger.Named("webhook-server"),
 		addr:   addr,
 		secret: []byte(secret),
 	}
@@ -69,6 +72,11 @@ func (s *Server) handle(
 		rw.WriteHeader(400)
 		rw.Write([]byte(err.Error()))
 	}
+
+	s.logger.Info("received webhook",
+		zap.String("type", github.WebHookType(r)),
+		zap.String("id", github.DeliveryID(r)),
+	)
 
 	switch event := event.(type) {
 	case *github.WorkflowRunEvent:

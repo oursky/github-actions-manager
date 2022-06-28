@@ -44,7 +44,7 @@ func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client) (*
 		)
 	}
 
-	server := webhook.NewServer(config.GetWebhookServerAddr(), config.WebhookSecret)
+	server := webhook.NewServer(logger, config.GetWebhookServerAddr(), config.WebhookSecret)
 
 	return &Synchronizer{
 		logger:   logger,
