@@ -13,6 +13,7 @@ import (
 
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
+	"github.com/oursky/github-actions-manager/pkg/utils/channels"
 
 	"github.com/Masterminds/sprig/v3"
 	"go.uber.org/zap"
@@ -20,11 +21,11 @@ import (
 )
 
 type RunnersState interface {
-	State() *runners.State
+	State() *channels.Broadcaster[*runners.State]
 }
 
 type JobsState interface {
-	State() *jobs.State
+	State() *channels.Broadcaster[*jobs.State]
 }
 
 type Server struct {

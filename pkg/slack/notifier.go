@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/go-github/v45/github"
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
+	"github.com/oursky/github-actions-manager/pkg/utils/channels"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackutilsx"
 	"go.uber.org/zap"
@@ -14,7 +15,7 @@ import (
 )
 
 type JobsState interface {
-	Wait() <-chan *jobs.State
+	State() *channels.Broadcaster[*jobs.State]
 }
 
 type Notifier struct {
@@ -44,13 +45,14 @@ func (n *Notifier) Start(ctx context.Context, g *errgroup.Group) error {
 
 func (n *Notifier) run(ctx context.Context) {
 	runStatuses := make(map[jobs.Key]string)
+	sub := channels.NewSubscriber(ctx, n.jobs.State())
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 
-		case s := <-n.jobs.Wait():
+		case s := <-sub.Wait():
 			n.logger.Debug("new job state", zap.Int("count", len(s.WorkflowRuns)))
 
 			runKeys := make(map[jobs.Key]struct{})

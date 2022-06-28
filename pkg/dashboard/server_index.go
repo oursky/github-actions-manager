@@ -18,7 +18,7 @@ func (s *Server) index(rw http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	isAll := r.Form.Has("all")
 
-	rState := s.runners.State()
+	rState := s.runners.State().Value()
 	var runners []runners.Instance
 	if rState != nil {
 		for _, i := range rState.Instances {
@@ -29,7 +29,7 @@ func (s *Server) index(rw http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	jState := s.jobs.State()
+	jState := s.jobs.State().Value()
 	var runs []*jobs.WorkflowRun
 	jobMap := make(map[int64]*jobs.WorkflowJob)
 	if jState != nil {

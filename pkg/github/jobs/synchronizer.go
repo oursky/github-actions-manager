@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/oursky/github-actions-manager/pkg/github/jobs/webhook"
+	"github.com/oursky/github-actions-manager/pkg/utils/channels"
 
 	"github.com/google/go-github/v45/github"
 	"go.uber.org/zap"
@@ -21,9 +21,7 @@ type Synchronizer struct {
 	server   *webhook.Server
 	github   *github.Client
 
-	lock    *sync.RWMutex
-	state   *State
-	waiters []chan<- *State
+	state *channels.Broadcaster[*State]
 }
 
 func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client) (*Synchronizer, error) {
@@ -52,9 +50,7 @@ func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client) (*
 		replayer: replayer,
 		server:   server,
 		github:   github.NewClient(client),
-		lock:     new(sync.RWMutex),
-		state:    nil,
-		waiters:  nil,
+		state:    channels.NewBroadcaster[*State](nil),
 	}, nil
 }
 
@@ -73,34 +69,8 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 	return nil
 }
 
-func (s *Synchronizer) Wait() <-chan *State {
-	c := make(chan *State, 1)
-	func() {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-
-		s.waiters = append(s.waiters, c)
-	}()
-
-	return c
-}
-
-func (s *Synchronizer) State() *State {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
+func (s *Synchronizer) State() *channels.Broadcaster[*State] {
 	return s.state
-}
-
-func (s *Synchronizer) next(state *State) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.state = state
-	for _, c := range s.waiters {
-		c <- state
-	}
-	s.waiters = nil
 }
 
 func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobKeys <-chan webhook.Key) {
@@ -163,7 +133,7 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 		}
 
 		state := newState(runs, jobs)
-		s.next(state)
+		s.state.Publish(state)
 	}
 }
 

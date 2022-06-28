@@ -2,32 +2,28 @@ package runners
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/oursky/github-actions-manager/pkg/github"
+	"github.com/oursky/github-actions-manager/pkg/utils/channels"
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 type Synchronizer struct {
-	logger  *zap.Logger
-	config  *Config
-	target  github.Target
-	lock    *sync.RWMutex
-	state   *State
-	waiters []chan<- *State
+	logger *zap.Logger
+	config *Config
+	target github.Target
+	state  *channels.Broadcaster[*State]
 }
 
 func NewSynchronizer(logger *zap.Logger, config *Config, target github.Target) *Synchronizer {
 	return &Synchronizer{
-		logger:  logger.Named("runner-sync"),
-		config:  config,
-		target:  target,
-		lock:    new(sync.RWMutex),
-		state:   nil,
-		waiters: nil,
+		logger: logger.Named("runner-sync"),
+		config: config,
+		target: target,
+		state:  channels.NewBroadcaster[*State](nil),
 	}
 }
 
@@ -39,34 +35,8 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 	return nil
 }
 
-func (s *Synchronizer) Wait() <-chan *State {
-	c := make(chan *State, 1)
-	func() {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-
-		s.waiters = append(s.waiters, c)
-	}()
-
-	return c
-}
-
-func (s *Synchronizer) State() *State {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
+func (s *Synchronizer) State() *channels.Broadcaster[*State] {
 	return s.state
-}
-
-func (s *Synchronizer) next(state *State) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.state = state
-	for _, c := range s.waiters {
-		c <- state
-	}
-	s.waiters = nil
 }
 
 func (s *Synchronizer) run(ctx context.Context) {
@@ -78,7 +48,7 @@ func (s *Synchronizer) run(ctx context.Context) {
 	for {
 		state := work.do(ctx)
 		if state != nil {
-			s.next(state)
+			s.state.Publish(state)
 			work.reset(state.Epoch + 1)
 		}
 
