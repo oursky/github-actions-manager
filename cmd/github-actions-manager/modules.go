@@ -15,9 +15,10 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/slack"
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
 	"github.com/oursky/github-actions-manager/pkg/utils/ratelimit"
-	"golang.org/x/time/rate"
 
+	gh "github.com/google/go-github/v45/github"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
@@ -62,6 +63,9 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	slackApp := slack.NewApp(logger, &config.Slack, kv)
 	modules = append(modules, slackApp)
+
+	notifier := slack.NewNotifier(logger, slackApp, gh.NewClient(client), jobs)
+	modules = append(modules, notifier)
 
 	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)
