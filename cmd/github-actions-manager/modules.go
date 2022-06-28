@@ -26,6 +26,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 		ratelimit.NewTransport(
 			http.DefaultTransport,
 			rate.Limit(defaults.Value(config.GitHub.RPS, 1)),
+			defaults.Value(config.GitHub.Brust, 60),
 		),
 	)
 	if err != nil {

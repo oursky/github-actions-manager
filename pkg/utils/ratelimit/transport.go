@@ -11,10 +11,10 @@ type Transport struct {
 	RateLimiter *rate.Limiter
 }
 
-func NewTransport(base http.RoundTripper, limit rate.Limit) *Transport {
+func NewTransport(base http.RoundTripper, limit rate.Limit, brust int) *Transport {
 	return &Transport{
 		Base:        base,
-		RateLimiter: rate.NewLimiter(limit, 1),
+		RateLimiter: rate.NewLimiter(limit, brust),
 	}
 }
 

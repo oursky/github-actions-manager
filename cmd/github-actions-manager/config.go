@@ -26,6 +26,7 @@ type Config struct {
 type GitHubConfig struct {
 	TargetURL   string              `toml:"targetURL" validate:"required,url"`
 	RPS         *float64            `toml:"rps,omitempty"`
+	Brust       *int                `toml:"brust,omitempty"`
 	HTTPTimeout *tomltypes.Duration `toml:"httpTimeout,omitempty"`
 	Auth        auth.Config         `toml:"auth"`
 	Runners     runners.Config      `toml:"runners,omitempty"`
