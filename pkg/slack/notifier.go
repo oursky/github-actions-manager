@@ -52,7 +52,10 @@ func (n *Notifier) run(ctx context.Context) {
 
 		case s := <-n.jobs.Wait():
 			n.logger.Debug("new job state", zap.Int("count", len(s.WorkflowRuns)))
+
+			runKeys := make(map[jobs.Key]struct{})
 			for _, run := range s.WorkflowRuns {
+				runKeys[run.Key] = struct{}{}
 				status := runStatuses[run.Key]
 				if run.Status != status {
 					n.logger.Info("status updated",
@@ -62,6 +65,12 @@ func (n *Notifier) run(ctx context.Context) {
 					)
 					n.notify(ctx, run)
 					runStatuses[run.Key] = run.Status
+				}
+			}
+
+			for key := range runStatuses {
+				if _, ok := runKeys[key]; !ok {
+					delete(runStatuses, key)
 				}
 			}
 		}
