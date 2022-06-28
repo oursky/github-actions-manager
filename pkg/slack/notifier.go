@@ -53,6 +53,9 @@ func (n *Notifier) run(ctx context.Context) {
 			return
 
 		case s := <-sub.Wait():
+			if s == nil {
+				continue
+			}
 			n.logger.Debug("new job state", zap.Int("count", len(s.WorkflowRuns)))
 
 			runKeys := make(map[jobs.Key]struct{})
