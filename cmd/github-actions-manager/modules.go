@@ -11,6 +11,8 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/github/auth"
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
+	"github.com/oursky/github-actions-manager/pkg/kv"
+	"github.com/oursky/github-actions-manager/pkg/slack"
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
 	"github.com/oursky/github-actions-manager/pkg/utils/ratelimit"
 	"golang.org/x/time/rate"
@@ -50,6 +52,15 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 		return nil, fmt.Errorf("cannot setup job sync: %w", err)
 	}
 	modules = append(modules, jobs)
+
+	kv, err := kv.NewKubeConfigMapStore(logger, config.Store.KubeNamespace)
+	if err != nil {
+		return nil, fmt.Errorf("cannot setup store: %w", err)
+	}
+	modules = append(modules, kv)
+
+	slackApp := slack.NewApp(logger, &config.Slack, kv)
+	modules = append(modules, slackApp)
 
 	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)

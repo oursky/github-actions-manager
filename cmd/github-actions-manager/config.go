@@ -9,6 +9,7 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/github/auth"
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
+	"github.com/oursky/github-actions-manager/pkg/slack"
 	"github.com/oursky/github-actions-manager/pkg/utils/tomltypes"
 
 	"github.com/BurntSushi/toml"
@@ -18,6 +19,8 @@ import (
 type Config struct {
 	GitHub    GitHubConfig     `toml:"github"`
 	Dashboard dashboard.Config `toml:"dashboard"`
+	Store     StoreConfig      `toml:"store"`
+	Slack     slack.Config     `toml:"slack"`
 }
 
 type GitHubConfig struct {
@@ -27,6 +30,10 @@ type GitHubConfig struct {
 	Auth        auth.Config         `toml:"auth"`
 	Runners     runners.Config      `toml:"runners,omitempty"`
 	Jobs        jobs.Config         `toml:"jobs,omitempty"`
+}
+
+type StoreConfig struct {
+	KubeNamespace string `toml:"kubeNamespace,omitempty" validate:"required"`
 }
 
 func NewConfig(path string) (*Config, error) {

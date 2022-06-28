@@ -13,9 +13,7 @@ type State struct {
 }
 
 type WorkflowRun struct {
-	ID        int64
-	RepoOwner string
-	RepoName  string
+	Key
 
 	Name       string
 	URL        string
@@ -30,9 +28,7 @@ type WorkflowRun struct {
 }
 
 type WorkflowJob struct {
-	ID        int64
-	RepoOwner string
-	RepoName  string
+	Key
 
 	Name       string
 	URL        string
@@ -60,9 +56,7 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 		commitURL := run.GetHeadRepository().GetHTMLURL() + "/commit/" + run.GetHeadCommit().GetID()
 
 		runMap[key] = &WorkflowRun{
-			ID:        key.ID,
-			RepoOwner: key.RepoOwner,
-			RepoName:  key.RepoName,
+			Key: key,
 
 			Name:       run.GetName(),
 			URL:        run.GetHTMLURL(),
@@ -96,9 +90,7 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 		}
 
 		run.Jobs = append(run.Jobs, &WorkflowJob{
-			ID:        key.ID,
-			RepoOwner: key.RepoOwner,
-			RepoName:  key.RepoName,
+			Key: key,
 
 			Name:       job.GetName(),
 			URL:        job.GetHTMLURL(),
