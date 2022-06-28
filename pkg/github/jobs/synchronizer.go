@@ -113,23 +113,16 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 			return
 
 		case key := <-runKeys:
-			run, _, err := s.github.Actions.GetWorkflowRunByID(ctx, key.RepoOwner, key.RepoName, key.ID)
-			if err != nil {
+			if _, err := s.updateRun(ctx, key, runs); err != nil {
 				s.logger.Warn("failed to get workflow run",
 					zap.String("owner", key.RepoOwner),
 					zap.String("repo", key.RepoName),
 					zap.Int64("id", key.ID),
 				)
-				break
-			}
-
-			runs[Key{ID: key.ID, RepoOwner: key.RepoOwner, RepoName: key.RepoName}] = cell[github.WorkflowRun]{
-				UpdatedAt: time.Now(),
-				Object:    run,
 			}
 
 		case key := <-jobKeys:
-			job, _, err := s.github.Actions.GetWorkflowJobByID(ctx, key.RepoOwner, key.RepoName, key.ID)
+			job, err := s.updateJob(ctx, key, jobs)
 			if err != nil {
 				s.logger.Warn("failed to get workflow job",
 					zap.String("owner", key.RepoOwner),
@@ -139,11 +132,14 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 				break
 			}
 
-			jobs[Key{ID: key.ID, RepoOwner: key.RepoOwner, RepoName: key.RepoName}] = cell[github.WorkflowJob]{
-				UpdatedAt: time.Now(),
-				Object:    job,
+			runKey := webhook.Key{ID: job.GetRunID(), RepoOwner: key.RepoOwner, RepoName: key.RepoName}
+			if _, err := s.updateRun(ctx, runKey, runs); err != nil {
+				s.logger.Warn("failed to get workflow run",
+					zap.String("owner", key.RepoOwner),
+					zap.String("repo", key.RepoName),
+					zap.Int64("id", key.ID),
+				)
 			}
-
 		}
 
 		retentionLimit := time.Now().Add(-s.config.GetRetentionPeriod())
@@ -169,4 +165,32 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 		state := newState(runs, jobs)
 		s.next(state)
 	}
+}
+
+func (s *Synchronizer) updateRun(ctx context.Context, key webhook.Key, runs map[Key]cell[github.WorkflowRun]) (*github.WorkflowRun, error) {
+	run, _, err := s.github.Actions.GetWorkflowRunByID(ctx, key.RepoOwner, key.RepoName, key.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	runs[Key{ID: key.ID, RepoOwner: key.RepoOwner, RepoName: key.RepoName}] = cell[github.WorkflowRun]{
+		UpdatedAt: time.Now(),
+		Object:    run,
+	}
+
+	return run, nil
+}
+
+func (s *Synchronizer) updateJob(ctx context.Context, key webhook.Key, jobs map[Key]cell[github.WorkflowJob]) (*github.WorkflowJob, error) {
+	job, _, err := s.github.Actions.GetWorkflowJobByID(ctx, key.RepoOwner, key.RepoName, key.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	jobs[Key{ID: key.ID, RepoOwner: key.RepoOwner, RepoName: key.RepoName}] = cell[github.WorkflowJob]{
+		UpdatedAt: time.Now(),
+		Object:    job,
+	}
+
+	return job, nil
 }
