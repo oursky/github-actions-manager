@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/oursky/github-actions-manager/pkg/api"
 	"github.com/oursky/github-actions-manager/pkg/cmd"
 	"github.com/oursky/github-actions-manager/pkg/dashboard"
 	"github.com/oursky/github-actions-manager/pkg/github"
@@ -71,6 +72,9 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)
+
+	api := api.NewServer(logger, &config.API)
+	modules = append(modules, api)
 
 	return modules, nil
 }

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/oursky/github-actions-manager/pkg/api"
 	"github.com/oursky/github-actions-manager/pkg/dashboard"
 	"github.com/oursky/github-actions-manager/pkg/github/auth"
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
@@ -21,6 +22,7 @@ type Config struct {
 	Dashboard dashboard.Config `toml:"dashboard"`
 	Store     StoreConfig      `toml:"store"`
 	Slack     slack.Config     `toml:"slack"`
+	API       api.Config       `toml:"api"`
 }
 
 type GitHubConfig struct {
