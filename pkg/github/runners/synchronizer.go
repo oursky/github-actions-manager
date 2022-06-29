@@ -111,7 +111,7 @@ func (s *syncWork) do(ctx context.Context) *State {
 		return nil
 	}
 
-	s.logger.Info("synchronized runners",
+	s.logger.Debug("synchronized runners",
 		zap.Int64("epoch", s.epoch),
 		zap.Time("beginTime", s.beginTime),
 		zap.Int("count", len(s.instances)),
