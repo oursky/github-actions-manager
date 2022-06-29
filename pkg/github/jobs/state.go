@@ -14,6 +14,12 @@ type State struct {
 	WorkflowRuns []*WorkflowRun
 }
 
+type Key struct {
+	ID        int64
+	RepoOwner string
+	RepoName  string
+}
+
 type WorkflowRun struct {
 	Key
 

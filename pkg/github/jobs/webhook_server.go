@@ -1,4 +1,4 @@
-package webhook
+package jobs
 
 import (
 	"context"
@@ -12,14 +12,19 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type Server struct {
+type webhookObject[T any] struct {
+	Key
+	Object T
+}
+
+type webhookServer struct {
 	logger *zap.Logger
 	addr   string
 	secret []byte
 }
 
-func NewServer(logger *zap.Logger, addr string, secret string) *Server {
-	server := &Server{
+func newWebhookServer(logger *zap.Logger, addr string, secret string) *webhookServer {
+	server := &webhookServer{
 		logger: logger.Named("webhook-server"),
 		addr:   addr,
 		secret: []byte(secret),
@@ -28,7 +33,12 @@ func NewServer(logger *zap.Logger, addr string, secret string) *Server {
 	return server
 }
 
-func (s *Server) Start(ctx context.Context, g *errgroup.Group, runs chan<- Key, jobs chan<- Key) error {
+func (s *webhookServer) Start(
+	ctx context.Context,
+	g *errgroup.Group,
+	runs chan<- webhookObject[*github.WorkflowRun],
+	jobs chan<- webhookObject[*github.WorkflowJob],
+) error {
 	g.Go(func() error {
 		server := &http.Server{
 			Addr:         s.addr,
@@ -54,12 +64,12 @@ func (s *Server) Start(ctx context.Context, g *errgroup.Group, runs chan<- Key, 
 	return nil
 }
 
-func (s *Server) handle(
+func (s *webhookServer) handle(
 	ctx context.Context,
 	rw http.ResponseWriter,
 	r *http.Request,
-	runs chan<- Key,
-	jobs chan<- Key,
+	runs chan<- webhookObject[*github.WorkflowRun],
+	jobs chan<- webhookObject[*github.WorkflowJob],
 ) {
 	payload, err := github.ValidatePayload(r, s.secret)
 	if err != nil {
@@ -85,7 +95,10 @@ func (s *Server) handle(
 			RepoOwner: event.GetRepo().GetOwner().GetLogin(),
 			RepoName:  event.GetRepo().GetName(),
 		}
-		channels.Send(ctx, runs, key)
+		channels.Send(ctx, runs, webhookObject[*github.WorkflowRun]{
+			Key:    key,
+			Object: event.GetWorkflowRun(),
+		})
 
 	case *github.WorkflowJobEvent:
 		key := Key{
@@ -93,6 +106,9 @@ func (s *Server) handle(
 			RepoOwner: event.GetRepo().GetOwner().GetLogin(),
 			RepoName:  event.GetRepo().GetName(),
 		}
-		channels.Send(ctx, jobs, key)
+		channels.Send(ctx, jobs, webhookObject[*github.WorkflowJob]{
+			Key:    key,
+			Object: event.GetWorkflowJob(),
+		})
 	}
 }
