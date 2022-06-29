@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/oursky/github-actions-manager/pkg/github"
+	"github.com/oursky/github-actions-manager/pkg/github/runners"
+	"github.com/oursky/github-actions-manager/pkg/utils/channels"
 	"github.com/oursky/github-actions-manager/pkg/utils/httputil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -15,13 +17,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type RunnersState interface {
+	State() *channels.Broadcaster[*runners.State]
+}
+
 type Server struct {
 	logger   *zap.Logger
 	server   *http.Server
+	runners  RunnersState
 	regToken *github.RegistrationTokenStore
 }
 
-func NewServer(logger *zap.Logger, config *Config, target github.Target, gatherer prometheus.Gatherer) *Server {
+func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target github.Target, gatherer prometheus.Gatherer) *Server {
 	logger = logger.Named("api")
 
 	mux := http.NewServeMux()
@@ -34,6 +41,7 @@ func NewServer(logger *zap.Logger, config *Config, target github.Target, gathere
 			Handler:      mux,
 			ErrorLog:     zap.NewStdLog(logger),
 		},
+		runners:  runners,
 		regToken: github.NewRegistrationTokenStore(logger, target),
 	}
 
@@ -44,7 +52,8 @@ func NewServer(logger *zap.Logger, config *Config, target github.Target, gathere
 	apiMux := http.NewServeMux()
 	mux.Handle("/api/", httputil.UseKeyAuth(config.SharedKeys, apiMux))
 
-	apiMux.HandleFunc("/api/token", server.token)
+	apiMux.HandleFunc("/api/token", server.apiToken)
+	apiMux.HandleFunc("/api/runners", server.apiRunners)
 
 	return server
 }

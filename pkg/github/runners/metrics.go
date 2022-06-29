@@ -16,9 +16,9 @@ type metrics struct {
 	online *promutil.MetricDesc
 }
 
-func newMetrics(r *prometheus.Registry) *metrics {
+func newMetrics(state *State, r *prometheus.Registry) *metrics {
 	m := &metrics{
-		state: nil,
+		state: state,
 		lock:  new(sync.RWMutex),
 
 		epoch: promutil.NewMetricDesc(prometheus.Opts{
@@ -48,9 +48,6 @@ func (m *metrics) Describe(ch chan<- *prometheus.Desc) {}
 
 func (m *metrics) Collect(ch chan<- prometheus.Metric) {
 	state := m.get()
-	if state == nil {
-		return
-	}
 
 	ch <- m.epoch.Counter(float64(state.Epoch), nil)
 	for _, i := range state.Instances {

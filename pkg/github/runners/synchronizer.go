@@ -21,12 +21,13 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer(logger *zap.Logger, config *Config, target github.Target, registry *prometheus.Registry) *Synchronizer {
+	state := &State{Epoch: 0, Instances: nil}
 	return &Synchronizer{
 		logger:  logger.Named("runner-sync"),
 		config:  config,
 		target:  target,
-		state:   channels.NewBroadcaster[*State](nil),
-		metrics: newMetrics(registry),
+		state:   channels.NewBroadcaster(state),
+		metrics: newMetrics(state, registry),
 	}
 }
 

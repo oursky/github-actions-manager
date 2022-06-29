@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-func (s *Server) token(rw http.ResponseWriter, r *http.Request) {
+func (s *Server) apiToken(rw http.ResponseWriter, r *http.Request) {
 	token, err := s.regToken.Get(r.Context())
 	if err != nil {
 		rw.WriteHeader(500)

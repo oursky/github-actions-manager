@@ -79,7 +79,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)
 
-	api := api.NewServer(logger, &config.API, target, registry)
+	api := api.NewServer(logger, &config.API, runners, target, registry)
 	modules = append(modules, api)
 
 	return modules, nil

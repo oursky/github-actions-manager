@@ -20,14 +20,12 @@ func (s *Server) index(rw http.ResponseWriter, r *http.Request) {
 
 	rState := s.runners.State().Value()
 	var runners []runners.Instance
-	if rState != nil {
-		for _, i := range rState.Instances {
-			runners = append(runners, i)
-		}
-		sort.Slice(runners, func(i, j int) bool {
-			return runners[i].ID < runners[j].ID
-		})
+	for _, i := range rState.Instances {
+		runners = append(runners, i)
 	}
+	sort.Slice(runners, func(i, j int) bool {
+		return runners[i].ID < runners[j].ID
+	})
 
 	jState := s.jobs.State().Value()
 	var runs []*jobs.WorkflowRun
