@@ -8,6 +8,7 @@ import (
 
 	"github.com/oursky/github-actions-manager/pkg/github/jobs/webhook"
 	"github.com/oursky/github-actions-manager/pkg/utils/channels"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/google/go-github/v45/github"
 	"go.uber.org/zap"
@@ -21,10 +22,11 @@ type Synchronizer struct {
 	server   *webhook.Server
 	github   *github.Client
 
-	state *channels.Broadcaster[*State]
+	state   *channels.Broadcaster[*State]
+	metrics *metrics
 }
 
-func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client) (*Synchronizer, error) {
+func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, registry *prometheus.Registry) (*Synchronizer, error) {
 	logger = logger.Named("jobs-sync")
 
 	var replayer *webhook.Replayer
@@ -51,6 +53,7 @@ func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client) (*
 		server:   server,
 		github:   github.NewClient(client),
 		state:    channels.NewBroadcaster[*State](nil),
+		metrics:  newMetrics(registry),
 	}, nil
 }
 
@@ -137,6 +140,7 @@ func (s *Synchronizer) run(ctx context.Context, runKeys <-chan webhook.Key, jobK
 
 		state := newState(runs, jobs)
 		s.state.Publish(state)
+		s.metrics.update(state)
 	}
 }
 

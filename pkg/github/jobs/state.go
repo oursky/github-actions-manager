@@ -2,10 +2,12 @@ package jobs
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/v45/github"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type State struct {
@@ -40,6 +42,22 @@ type WorkflowJob struct {
 	RunnerID     *int64
 	RunnerName   *string
 	RunnerLabels []string
+}
+
+func (j *WorkflowJob) labels() prometheus.Labels {
+	labels := prometheus.Labels{
+		"workflow_job_id":  strconv.FormatInt(j.ID, 10),
+		"repository_owner": j.RepoOwner,
+		"repository_name":  j.RepoName,
+		"name":             j.Name,
+	}
+	if j.RunnerID != nil {
+		labels["runner_id"] = strconv.FormatInt(*j.RunnerID, 10)
+	}
+	if j.RunnerName != nil {
+		labels["runner_name"] = *j.RunnerName
+	}
+	return labels
 }
 
 type cell[T any] struct {

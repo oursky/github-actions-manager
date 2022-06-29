@@ -22,10 +22,14 @@ func (d *MetricDesc) Counter(value float64, labels prometheus.Labels) prometheus
 	return prometheus.MustNewConstMetric(d.Desc(labels), prometheus.CounterValue, value)
 }
 
+func (d *MetricDesc) Gauge(value float64, labels prometheus.Labels) prometheus.Metric {
+	return prometheus.MustNewConstMetric(d.Desc(labels), prometheus.GaugeValue, value)
+}
+
 func (d *MetricDesc) GaugeBool(value bool, labels prometheus.Labels) prometheus.Metric {
 	v := float64(0)
 	if value {
 		v = 1
 	}
-	return prometheus.MustNewConstMetric(d.Desc(labels), prometheus.GaugeValue, v)
+	return d.Gauge(v, labels)
 }

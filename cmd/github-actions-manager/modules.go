@@ -56,7 +56,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 	runners := runners.NewSynchronizer(logger, &config.GitHub.Runners, target, registry)
 	modules = append(modules, runners)
 
-	jobs, err := jobs.NewSynchronizer(logger, &config.GitHub.Jobs, client)
+	jobs, err := jobs.NewSynchronizer(logger, &config.GitHub.Jobs, client, registry)
 	if err != nil {
 		return nil, fmt.Errorf("cannot setup job sync: %w", err)
 	}
