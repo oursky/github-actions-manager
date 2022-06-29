@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -16,11 +15,10 @@ import (
 )
 
 type Synchronizer struct {
-	logger   *zap.Logger
-	config   *Config
-	replayer *webhook.Replayer
-	server   *webhook.Server
-	github   *github.Client
+	logger *zap.Logger
+	config *Config
+	server *webhook.Server
+	github *github.Client
 
 	state   *channels.Broadcaster[*State]
 	metrics *metrics
@@ -29,31 +27,15 @@ type Synchronizer struct {
 func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, registry *prometheus.Registry) (*Synchronizer, error) {
 	logger = logger.Named("jobs-sync")
 
-	var replayer *webhook.Replayer
-	if config.ReplayEnabled {
-		source, err := webhook.NewSource(client)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create webhook source: %w", err)
-		}
-		replayer = webhook.NewReplayer(
-			logger,
-			source,
-			config.GetRetentionPeriod(),
-			config.GetSyncInterval(),
-			config.GetSyncPageSize(),
-		)
-	}
-
 	server := webhook.NewServer(logger, config.GetWebhookServerAddr(), config.WebhookSecret)
 
 	return &Synchronizer{
-		logger:   logger,
-		config:   config,
-		replayer: replayer,
-		server:   server,
-		github:   github.NewClient(client),
-		state:    channels.NewBroadcaster[*State](nil),
-		metrics:  newMetrics(registry),
+		logger:  logger,
+		config:  config,
+		server:  server,
+		github:  github.NewClient(client),
+		state:   channels.NewBroadcaster[*State](nil),
+		metrics: newMetrics(registry),
 	}, nil
 }
 
@@ -61,9 +43,6 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 	runs := make(chan webhook.Key)
 	jobs := make(chan webhook.Key)
 
-	if s.replayer != nil {
-		s.replayer.Start(ctx, g, runs, jobs)
-	}
 	s.server.Start(ctx, g, runs, jobs)
 	g.Go(func() error {
 		s.run(ctx, runs, jobs)
