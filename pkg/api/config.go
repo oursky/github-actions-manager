@@ -3,7 +3,8 @@ package api
 import "github.com/oursky/github-actions-manager/pkg/utils/defaults"
 
 type Config struct {
-	Addr *string `toml:"addr,omitempty" validate:"omitempty,tcp_addr"`
+	Addr       *string  `toml:"addr,omitempty" validate:"omitempty,tcp_addr"`
+	SharedKeys []string `toml:"sharedKeys,omitempty" validate:"required"`
 }
 
 func (c *Config) GetAddr() string {

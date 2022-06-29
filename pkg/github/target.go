@@ -11,6 +11,7 @@ import (
 
 type Target interface {
 	URL() string
+	GetRegistrationToken(ctx context.Context) (*github.RegistrationToken, error)
 	GetRunners(ctx context.Context, page int, pageSize int) (runners []*github.Runner, nextPage int, err error)
 }
 

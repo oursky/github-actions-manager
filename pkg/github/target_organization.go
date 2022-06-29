@@ -23,6 +23,15 @@ func (t *TargetOrganization) URL() string {
 	return fmt.Sprintf("https://github.com/%s", t.Name)
 }
 
+func (t *TargetOrganization) GetRegistrationToken(ctx context.Context) (*github.RegistrationToken, error) {
+	token, _, err := t.client.Actions.CreateOrganizationRegistrationToken(ctx, t.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
+}
+
 func (t *TargetOrganization) GetRunners(
 	ctx context.Context, page int, pageSize int,
 ) ([]*github.Runner, int, error) {

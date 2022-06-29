@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/oursky/github-actions-manager/pkg/github"
+	"github.com/oursky/github-actions-manager/pkg/utils/httputil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -14,11 +16,12 @@ import (
 )
 
 type Server struct {
-	logger *zap.Logger
-	server *http.Server
+	logger   *zap.Logger
+	server   *http.Server
+	regToken *github.RegistrationTokenStore
 }
 
-func NewServer(logger *zap.Logger, config *Config, gatherer prometheus.Gatherer) *Server {
+func NewServer(logger *zap.Logger, config *Config, target github.Target, gatherer prometheus.Gatherer) *Server {
 	logger = logger.Named("api")
 
 	mux := http.NewServeMux()
@@ -31,11 +34,17 @@ func NewServer(logger *zap.Logger, config *Config, gatherer prometheus.Gatherer)
 			Handler:      mux,
 			ErrorLog:     zap.NewStdLog(logger),
 		},
+		regToken: github.NewRegistrationTokenStore(logger, target),
 	}
 
 	mux.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
 		ErrorLog: zap.NewStdLog(logger.Named("prom")),
 	}))
+
+	apiMux := http.NewServeMux()
+	mux.Handle("/api/", httputil.UseKeyAuth(config.SharedKeys, apiMux))
+
+	apiMux.HandleFunc("/api/token", server.token)
 
 	return server
 }
