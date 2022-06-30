@@ -13,6 +13,7 @@ type Target interface {
 	URL() string
 	GetRegistrationToken(ctx context.Context) (*github.RegistrationToken, error)
 	GetRunners(ctx context.Context, page int, pageSize int) (runners []*github.Runner, nextPage int, err error)
+	DeleteRunner(ctx context.Context, id int64) error
 }
 
 var (

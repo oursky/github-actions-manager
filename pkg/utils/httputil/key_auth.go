@@ -21,7 +21,7 @@ func UseKeyAuth(keys []string, next http.Handler) *KeyAuthMiddleware {
 func (m *KeyAuthMiddleware) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	authz := r.Header.Get("Authorization")
 	bearer, key, ok := strings.Cut(authz, " ")
-	if !ok || strings.ToLower(bearer) != "bearer" {
+	if !ok || !strings.EqualFold(bearer, "Bearer") {
 		rw.WriteHeader(http.StatusUnauthorized)
 		rw.Write([]byte("invalid key"))
 		return

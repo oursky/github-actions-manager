@@ -8,11 +8,11 @@ import (
 )
 
 type Instance struct {
-	ID       int64
-	Name     string
-	IsOnline bool
-	IsBusy   bool
-	Labels   []string
+	ID       int64    `json:"id"`
+	Name     string   `json:"name"`
+	IsOnline bool     `json:"isOnline"`
+	IsBusy   bool     `json:"isBusy"`
+	Labels   []string `json:"labels"`
 }
 
 func (i *Instance) labels() prometheus.Labels {

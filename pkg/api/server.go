@@ -11,6 +11,7 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/utils/channels"
 	"github.com/oursky/github-actions-manager/pkg/utils/httputil"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -25,6 +26,7 @@ type Server struct {
 	logger   *zap.Logger
 	server   *http.Server
 	runners  RunnersState
+	target   github.Target
 	regToken *github.RegistrationTokenStore
 }
 
@@ -42,6 +44,7 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 			ErrorLog:     zap.NewStdLog(logger),
 		},
 		runners:  runners,
+		target:   target,
 		regToken: github.NewRegistrationTokenStore(logger, target),
 	}
 
@@ -50,10 +53,11 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 	}))
 
 	apiMux := http.NewServeMux()
-	mux.Handle("/api/", httputil.UseKeyAuth(config.SharedKeys, apiMux))
+	mux.Handle("/api/v1/", httputil.UseKeyAuth(config.SharedKeys, apiMux))
 
-	apiMux.HandleFunc("/api/token", server.apiToken)
-	apiMux.HandleFunc("/api/runners", server.apiRunners)
+	apiMux.HandleFunc("/api/v1/token", server.apiToken)
+	apiMux.HandleFunc("/api/v1/runners", server.apiRunnersGet)
+	apiMux.HandleFunc("/api/v1/runners/", server.apiRunnerDelete)
 
 	return server
 }

@@ -42,7 +42,9 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 	runs := make(chan webhookObject[*github.WorkflowRun])
 	jobs := make(chan webhookObject[*github.WorkflowJob])
 
-	s.server.Start(ctx, g, runs, jobs)
+	if err := s.server.Start(ctx, g, runs, jobs); err != nil {
+		return err
+	}
 	g.Go(func() error {
 		s.run(ctx, runs, jobs)
 		return nil

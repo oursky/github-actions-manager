@@ -46,3 +46,8 @@ func (t *TargetRepository) GetRunners(
 
 	return runners.Runners, resp.NextPage, nil
 }
+
+func (t *TargetRepository) DeleteRunner(ctx context.Context, id int64) error {
+	_, err := t.client.Actions.RemoveRunner(ctx, t.Owner, t.Name, id)
+	return err
+}

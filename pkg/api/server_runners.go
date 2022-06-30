@@ -3,45 +3,55 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
+
+	"go.uber.org/zap"
 )
 
 type runnerResponse struct {
-	Epoch   int64
-	Runners any
+	Epoch   int64              `json:"epoch"`
+	Runners []runners.Instance `json:"runners"`
 }
 
-type instanceSummary struct {
-	ID   int64
-	Name string
+func (s *Server) apiRunnerDelete(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(rw, "unsupported method", http.StatusBadRequest)
+		return
+	}
+
+	idstr := strings.TrimPrefix(r.URL.Path, "/api/v1/runners/")
+
+	id, err := strconv.ParseInt(idstr, 10, 64)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = s.target.DeleteRunner(r.Context(), id)
+	if err != nil {
+		s.logger.Warn("failed to delete runner", zap.Error(err), zap.Int64("id", id))
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+	}
+
+	rw.WriteHeader(200)
 }
 
-func (s *Server) apiRunners(rw http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+func (s *Server) apiRunnersGet(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(rw, "unsupported method", http.StatusBadRequest)
+		return
+	}
 
-	isSummary := r.Form.Has("summary")
-	isOnlineOnly := r.Form.Has("online")
 	state := s.runners.State().Value()
 
 	var instances []runners.Instance
 	for _, i := range state.Instances {
 		instances = append(instances, i)
-		if isOnlineOnly && !i.IsOnline {
-			continue
-		}
 	}
-
-	var resp any = instances
-	if isSummary {
-		var summary []instanceSummary
-		for _, i := range instances {
-			summary = append(summary, instanceSummary{ID: i.ID, Name: i.Name})
-		}
-		resp = runnerResponse{Epoch: state.Epoch, Runners: summary}
-	} else {
-		resp = runnerResponse{Epoch: state.Epoch, Runners: instances}
-	}
+	resp := runnerResponse{Epoch: state.Epoch, Runners: instances}
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(200)

@@ -45,3 +45,8 @@ func (t *TargetOrganization) GetRunners(
 
 	return runners.Runners, resp.NextPage, nil
 }
+
+func (t *TargetOrganization) DeleteRunner(ctx context.Context, id int64) error {
+	_, err := t.client.Actions.RemoveOrganizationRunner(ctx, t.Name, id)
+	return err
+}
