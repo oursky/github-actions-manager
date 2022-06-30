@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	RunnerDir       string              `toml:"runnerDir" validate:"required,dir"`
-	WorkDir         string              `toml:"workDir" validate:"required,dir"`
+	WorkDir         string              `toml:"workDir" validate:"required"`
 	ConfigureScript *string             `toml:"configureScript"`
 	RunScript       *string             `toml:"runScript"`
 	WatchInterval   *tomltypes.Duration `toml:"watchInterval,omitempty"`
