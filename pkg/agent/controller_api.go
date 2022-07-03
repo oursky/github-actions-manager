@@ -38,12 +38,12 @@ func (c *controllerAPI) doJSON(r *http.Request, result any) error {
 	return json.NewDecoder(resp.Body).Decode(&result)
 }
 
-func (c *controllerAPI) RegisterAgent(ctx context.Context, runnerName string) (*controller.AgentResponse, error) {
+func (c *controllerAPI) RegisterAgent(ctx context.Context, hostName string) (*controller.AgentResponse, error) {
 	r, err := c.provider.NewControllerRequest(
 		ctx,
 		http.MethodPost,
 		"api/v1/agent",
-		bytes.NewBufferString(url.Values{"runnerName": []string{runnerName}}.Encode()),
+		bytes.NewBufferString(url.Values{"hostName": []string{hostName}}.Encode()),
 	)
 	if err != nil {
 		return nil, err

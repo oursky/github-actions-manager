@@ -42,17 +42,17 @@ func (m *executer) Start(ctx context.Context, g *errgroup.Group) error {
 }
 
 func (m *executer) execute(ctx context.Context) {
-	runnerName, err := os.Hostname()
+	hostName, err := os.Hostname()
 	if err != nil {
 		m.logger.Error("failed to get hostname", zap.Error(err))
 		return
 	}
-	runnerName = strings.TrimSuffix(runnerName, ".local")
+	hostName = strings.TrimSuffix(hostName, ".local")
 
-	m.logger.Info("registering agent", zap.String("runnerName", runnerName))
+	m.logger.Info("registering agent", zap.String("hostName", hostName))
 	var resp *controller.AgentResponse
 	for {
-		resp, err = m.controllerAPI.RegisterAgent(ctx, runnerName)
+		resp, err = m.controllerAPI.RegisterAgent(ctx, hostName)
 		if err == nil {
 			break
 		}

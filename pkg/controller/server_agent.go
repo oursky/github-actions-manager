@@ -78,7 +78,10 @@ func (s *server) apiAgentPost(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runnerName := r.FormValue("runnerName")
+	hostName := r.FormValue("hostName")
+	if hostName == "" {
+		http.Error(rw, "empty hostName", http.StatusBadRequest)
+	}
 
 	regToken, targetURL, err := s.managerAPI.GetRegistrationToken(r.Context())
 	if err != nil {
@@ -87,9 +90,9 @@ func (s *server) apiAgentPost(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.provider.RegisterAgent(r, runnerName, regToken, targetURL)
+	resp, err := s.provider.RegisterAgent(r, hostName, regToken, targetURL)
 	if err != nil {
-		s.logger.Error("cannot register agent", zap.Error(err), zap.String("runnerName", runnerName))
+		s.logger.Error("cannot register agent", zap.Error(err), zap.String("hostName", hostName))
 		http.Error(rw, "cannot register agent", http.StatusInternalServerError)
 		return
 	}

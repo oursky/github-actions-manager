@@ -108,7 +108,7 @@ func (p *ControllerProvider) AuthenticateRequest(rw http.ResponseWriter, r *http
 
 func (p *ControllerProvider) RegisterAgent(
 	r *http.Request,
-	runnerName string,
+	hostName string,
 	regToken string,
 	targetURL string,
 ) (*controller.AgentResponse, error) {
@@ -117,7 +117,7 @@ func (p *ControllerProvider) RegisterAgent(
 	group := annotations[annotationRunnerGroup]
 	labels := strings.Split(annotations[annotationRunnerLabels], ",")
 
-	agent, err := p.state.makeAgent(pod, runnerName)
+	agent, err := p.state.makeAgent(pod, hostName)
 	if err != nil {
 		return nil, err
 	}

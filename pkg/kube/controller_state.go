@@ -11,7 +11,9 @@ import (
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
 	listercorev1 "k8s.io/client-go/listers/core/v1"
 )
@@ -64,7 +66,13 @@ func (s *ControllerState) GetPod(agentID string) (*corev1.Pod, error) {
 	return s.pods.Pods(namespace).Get(name)
 }
 
-func (s *ControllerState) makeAgent(pod *corev1.Pod, runnerName string) (*controller.Agent, error) {
+func (s *ControllerState) makeAgent(pod *corev1.Pod, hostName string) (*controller.Agent, error) {
+	runnerName := hostName
+	ctrl := metav1.GetControllerOf(pod)
+	if ctrl != nil && ctrl.Kind == "StatefulSet" {
+		runnerName += "-" + rand.String(5)
+	}
+
 	id := pod.Namespace + "/" + pod.Name
 	agent := &controller.Agent{
 		ID:                 id,
