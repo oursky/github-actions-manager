@@ -107,6 +107,11 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 			continue
 		}
 
+		// FIXME: run_attempt is missing for WorkflowJob model, attempt to infer filter.
+		if job.GetStartedAt().Before(run.CreatedAt) {
+			continue
+		}
+
 		var startedAt *time.Time
 		if t := job.GetStartedAt(); !t.IsZero() {
 			startedAt = &t.Time
