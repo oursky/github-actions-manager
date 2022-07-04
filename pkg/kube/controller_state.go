@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -80,6 +81,11 @@ func (s *ControllerState) makeAgent(pod *corev1.Pod, hostName string) (*controll
 		State:              controller.AgentStateConfiguring,
 		LastTransitionTime: time.Now(),
 		RunnerID:           nil,
+	}
+
+	if pod.Annotations[annotationRunnerState] != "" {
+		agent := s.decodeState(pod)
+		return nil, fmt.Errorf("pod is already registered as agent: %+v", agent)
 	}
 
 	data, err := s.encodeState(pod, agent)
