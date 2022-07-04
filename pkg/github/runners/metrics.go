@@ -56,7 +56,7 @@ func (m *metrics) Collect(ch chan<- prometheus.Metric) {
 			ch <- m.busy.Gauge(1, labels)
 		}
 		if i.IsOnline {
-			ch <- m.busy.Gauge(1, labels)
+			ch <- m.online.Gauge(1, labels)
 		}
 	}
 }
