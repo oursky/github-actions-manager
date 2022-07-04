@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v45/github"
+	"github.com/oursky/github-actions-manager/pkg/utils/promutil"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -62,6 +63,9 @@ func (j *WorkflowJob) labels() prometheus.Labels {
 	}
 	if j.RunnerName != nil {
 		labels["runner_name"] = *j.RunnerName
+	}
+	for _, l := range j.RunnerLabels {
+		labels["runner_label_"+promutil.SanitizeLabel(l)] = l
 	}
 	return labels
 }
