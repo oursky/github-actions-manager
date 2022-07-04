@@ -1,0 +1,66 @@
+name: Build
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master]
+
+jobs:
+  manager:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build Image
+        run: |
+          make -C cmd/github-actions-manager build
+
+      - name: Push Image
+        if: ${{ github.event_name == 'push' }}
+        run: |-
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          test "$GITHUB_REF_NAME" = master && \
+            make -C cmd/github-actions-manager push TAG=latest || \
+            make -C cmd/github-actions-manager push TAG="$GITHUB_REF_NAME"
+
+  kube-controller:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build Image
+        run: |
+          make -C cmd/kube-controller build
+
+      - name: Push Image
+        if: ${{ github.event_name == 'push' }}
+        run: |-
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          test "$GITHUB_REF_NAME" = master && \
+            make -C cmd/kube-controller push TAG=latest || \
+            make -C cmd/kube-controller push TAG="$GITHUB_REF_NAME"
+
+  kube-agent:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.18.2'
+
+      - name: Build Artifact
+        run: |
+          make -C cmd/kube-agent build
+
+      - name: Push Artifact
+        if: ${{ github.event_name == 'push' }}
+        run: |-
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          test "$GITHUB_REF_NAME" = master && \
+            make -C cmd/kube-agent push TAG=latest || \
+            make -C cmd/kube-agent push TAG="$GITHUB_REF_NAME"
