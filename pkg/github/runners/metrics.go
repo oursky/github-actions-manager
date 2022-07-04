@@ -52,8 +52,12 @@ func (m *metrics) Collect(ch chan<- prometheus.Metric) {
 	ch <- m.epoch.Counter(float64(state.Epoch), nil)
 	for _, i := range state.Instances {
 		labels := i.labels()
-		ch <- m.busy.GaugeBool(i.IsBusy, labels)
-		ch <- m.online.GaugeBool(i.IsOnline, labels)
+		if i.IsBusy {
+			ch <- m.busy.Gauge(1, labels)
+		}
+		if i.IsOnline {
+			ch <- m.busy.Gauge(1, labels)
+		}
 	}
 }
 

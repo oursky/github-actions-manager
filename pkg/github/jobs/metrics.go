@@ -69,9 +69,14 @@ func (m *metrics) Collect(ch chan<- prometheus.Metric) {
 	for _, run := range state.WorkflowRuns {
 		for _, job := range run.Jobs {
 			labels := job.labels()
-			ch <- m.statusQueued.GaugeBool(job.Status == "queued", labels)
-			ch <- m.statusInProgress.GaugeBool(job.Status == "in_progress", labels)
-			ch <- m.statusCompleted.GaugeBool(job.Status == "completed", labels)
+			switch job.Status {
+			case "queued":
+				ch <- m.statusQueued.Gauge(1, labels)
+			case "in_progress":
+				ch <- m.statusInProgress.Gauge(1, labels)
+			case "completed":
+				ch <- m.statusCompleted.Gauge(1, labels)
+			}
 			if job.StartedAt != nil {
 				ch <- m.startedAt.Gauge(float64(job.StartedAt.Unix()), labels)
 			}
