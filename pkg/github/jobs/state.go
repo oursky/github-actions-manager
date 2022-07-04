@@ -152,9 +152,20 @@ var statusOrder map[string]int = map[string]int{
 	"completed":   1,
 }
 
+var conclusionOrder map[string]int = map[string]int{
+	"failure": 2,
+	"success": 1,
+}
+
 func compareJob(a *WorkflowJob, b *WorkflowJob) bool {
 	aKey := statusOrder[a.Status]
 	bKey := statusOrder[b.Status]
+	if aKey != bKey {
+		return aKey > bKey
+	}
+
+	aKey = conclusionOrder[a.Conclusion]
+	bKey = conclusionOrder[b.Conclusion]
 	if aKey != bKey {
 		return aKey > bKey
 	}
