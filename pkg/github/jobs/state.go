@@ -29,7 +29,7 @@ type WorkflowRun struct {
 	Status     string
 	Conclusion string
 
-	CreatedAt          time.Time
+	StartedAt          time.Time
 	CommitMessageTitle string
 	CommitURL          string
 
@@ -91,7 +91,7 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 			Status:     run.GetStatus(),
 			Conclusion: run.GetConclusion(),
 
-			CreatedAt:          run.GetCreatedAt().Time,
+			StartedAt:          run.GetRunStartedAt().Time,
 			CommitMessageTitle: commitMsgTitle,
 			CommitURL:          commitURL,
 		}
@@ -108,7 +108,7 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 		}
 
 		// FIXME: run_attempt is missing for WorkflowJob model, attempt to infer filter.
-		if job.GetStartedAt().Before(run.CreatedAt) {
+		if job.GetStartedAt().Before(run.StartedAt) {
 			continue
 		}
 
