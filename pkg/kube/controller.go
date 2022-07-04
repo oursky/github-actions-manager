@@ -91,6 +91,12 @@ func (c *ControllerProvider) Shutdown() {
 	c.cancel()
 }
 
+func (c *ControllerProvider) Capabilities() controller.Capabilities {
+	return controller.Capabilities{
+		KeepAgentsOnExit: true,
+	}
+}
+
 func (p *ControllerProvider) AuthenticateRequest(rw http.ResponseWriter, r *http.Request, next http.Handler) {
 	pod, ok := p.getPod(rw, r)
 	if !ok {

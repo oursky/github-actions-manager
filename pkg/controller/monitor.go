@@ -50,6 +50,10 @@ func (m *monitor) run(ctx context.Context) {
 		}
 	}
 
+	if m.provider.Capabilities().KeepAgentsOnExit {
+		return
+	}
+
 	ctx = context.Background()
 	for {
 		if ok := m.terminateAll(ctx); ok {
