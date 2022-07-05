@@ -53,7 +53,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	var modules []cmd.Module
 
-	kv, err := kv.NewKubeConfigMapStore(logger, config.Store.KubeNamespace)
+	kv, err := kv.NewStore(logger, &config.Store)
 	if err != nil {
 		return nil, fmt.Errorf("cannot setup store: %w", err)
 	}

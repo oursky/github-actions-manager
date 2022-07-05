@@ -10,6 +10,7 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/github/auth"
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
+	"github.com/oursky/github-actions-manager/pkg/kv"
 	"github.com/oursky/github-actions-manager/pkg/slack"
 	"github.com/oursky/github-actions-manager/pkg/utils/tomltypes"
 
@@ -20,7 +21,7 @@ import (
 type Config struct {
 	GitHub    GitHubConfig     `toml:"github"`
 	Dashboard dashboard.Config `toml:"dashboard"`
-	Store     StoreConfig      `toml:"store"`
+	Store     kv.Config        `toml:"store"`
 	Slack     slack.Config     `toml:"slack"`
 	API       api.Config       `toml:"api"`
 }

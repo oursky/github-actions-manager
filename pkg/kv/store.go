@@ -1,8 +1,13 @@
 package kv
 
-import "context"
+import (
+	"context"
+
+	"golang.org/x/sync/errgroup"
+)
 
 type Store interface {
+	Start(ctx context.Context, g *errgroup.Group) error
 	Get(ctx context.Context, ns Namespace, key string) (string, error)
 	Set(ctx context.Context, ns Namespace, key string, value string) error
 }
