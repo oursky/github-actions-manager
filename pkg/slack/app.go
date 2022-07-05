@@ -17,15 +17,17 @@ import (
 var repoRegex = regexp.MustCompile("[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?")
 
 type App struct {
-	logger *zap.Logger
-	api    *slack.Client
-	store  kv.Store
+	logger   *zap.Logger
+	disabled bool
+	api      *slack.Client
+	store    kv.Store
 }
 
 func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
 	logger = logger.Named("slack-app")
 	return &App{
-		logger: logger,
+		logger:   logger,
+		disabled: config.Disabled,
 		api: slack.New(
 			config.BotToken,
 			slack.OptionLog(zap.NewStdLog(logger)),
@@ -35,7 +37,11 @@ func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
 	}
 }
 
-func (a *App) getChannels(ctx context.Context, repo string) ([]string, error) {
+func (a *App) Disabled() bool {
+	return a.disabled
+}
+
+func (a *App) GetChannels(ctx context.Context, repo string) ([]string, error) {
 	data, err := a.store.Get(ctx, kvNamespace, repo)
 	if err != nil {
 		return nil, err
@@ -45,8 +51,8 @@ func (a *App) getChannels(ctx context.Context, repo string) ([]string, error) {
 	return strings.Split(data, ";"), nil
 }
 
-func (a *App) addChannel(ctx context.Context, repo string, channelID string) error {
-	channelIDs, err := a.getChannels(ctx, repo)
+func (a *App) AddChannel(ctx context.Context, repo string, channelID string) error {
+	channelIDs, err := a.GetChannels(ctx, repo)
 	if err != nil {
 		return err
 	}
@@ -63,7 +69,7 @@ func (a *App) addChannel(ctx context.Context, repo string, channelID string) err
 }
 
 func (a *App) DelChannel(ctx context.Context, repo string, channelID string) error {
-	channelIDs, err := a.getChannels(ctx, repo)
+	channelIDs, err := a.GetChannels(ctx, repo)
 	if err != nil {
 		return err
 	}
@@ -85,7 +91,16 @@ func (a *App) DelChannel(ctx context.Context, repo string, channelID string) err
 	return a.store.Set(ctx, kvNamespace, repo, data)
 }
 
+func (a *App) SendMessage(ctx context.Context, channel string, options ...slack.MsgOption) error {
+	_, _, _, err := a.api.SendMessageContext(ctx, channel, options...)
+	return err
+}
+
 func (a *App) Start(ctx context.Context, g *errgroup.Group) error {
+	if a.disabled {
+		return nil
+	}
+
 	client := socketmode.New(
 		a.api,
 		socketmode.OptionLog(zap.NewStdLog(a.logger)),
@@ -146,7 +161,7 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 
 				switch subcommand {
 				case "subscribe":
-					err := a.addChannel(ctx, repo, data.ChannelID)
+					err := a.AddChannel(ctx, repo, data.ChannelID)
 					if err != nil {
 						a.logger.Warn("failed to subscribe", zap.Error(err))
 						client.Ack(*e.Request, map[string]interface{}{

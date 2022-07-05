@@ -24,6 +24,7 @@ type RunnersState interface {
 
 type Server struct {
 	logger   *zap.Logger
+	enabled  bool
 	server   *http.Server
 	runners  RunnersState
 	target   github.Target
@@ -31,11 +32,16 @@ type Server struct {
 }
 
 func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target github.Target, gatherer prometheus.Gatherer) *Server {
+	if config.Disabled {
+		return &Server{enabled: false}
+	}
+
 	logger = logger.Named("api")
 
 	mux := http.NewServeMux()
 	server := &Server{
-		logger: logger,
+		logger:  logger,
+		enabled: true,
 		server: &http.Server{
 			Addr:         config.GetAddr(),
 			ReadTimeout:  10 * time.Second,
@@ -63,6 +69,10 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 }
 
 func (s *Server) Start(ctx context.Context, g *errgroup.Group) error {
+	if !s.enabled {
+		return nil
+	}
+
 	g.Go(func() error {
 		go func() {
 			<-ctx.Done()

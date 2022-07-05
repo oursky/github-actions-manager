@@ -10,12 +10,13 @@ import (
 const KVKey = "jobs"
 
 type Config struct {
+	Disabled          bool                `toml:"disabled"`
 	ReplayEnabled     bool                `toml:"replay_enabled,omitempty"`
 	RetentionPeriod   *tomltypes.Duration `toml:"retention_period,omitempty"`
 	SyncInterval      *tomltypes.Duration `toml:"syncInterval,omitempty"`
 	SyncPageSize      *int                `toml:"syncPageSize,omitempty" validate:"omitempty,min=1,max=100"`
 	WebhookServerAddr *string             `toml:"webhookServerAddr,omitempty" validate:"omitempty,tcp_addr"`
-	WebhookSecret     string              `toml:"webhookSecret" validate:"required"`
+	WebhookSecret     string              `toml:"webhookSecret" validate:"required_if=Disabled false"`
 }
 
 func (c *Config) GetRetentionPeriod() time.Duration {

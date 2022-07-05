@@ -68,13 +68,11 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 	}
 	modules = append(modules, jobs)
 
-	if !config.Slack.Disabled {
-		slackApp := slack.NewApp(logger, &config.Slack, kv)
-		modules = append(modules, slackApp)
+	slackApp := slack.NewApp(logger, &config.Slack, kv)
+	modules = append(modules, slackApp)
 
-		notifier := slack.NewNotifier(logger, slackApp, gh.NewClient(client), jobs)
-		modules = append(modules, notifier)
-	}
+	notifier := slack.NewNotifier(logger, slackApp, gh.NewClient(client), jobs)
+	modules = append(modules, notifier)
 
 	dashboard := dashboard.NewServer(logger, &config.Dashboard, runners, jobs)
 	modules = append(modules, dashboard)

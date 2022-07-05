@@ -36,6 +36,10 @@ func NewNotifier(logger *zap.Logger, app *App, client *github.Client, jobs JobsS
 }
 
 func (n *Notifier) Start(ctx context.Context, g *errgroup.Group) error {
+	if n.app.Disabled() {
+		return nil
+	}
+
 	g.Go(func() error {
 		n.run(ctx)
 		return nil
@@ -88,7 +92,7 @@ func (n *Notifier) notify(ctx context.Context, run *jobs.WorkflowRun) {
 	}
 
 	repo := fmt.Sprintf("%s/%s", run.RepoOwner, run.RepoName)
-	channels, err := n.app.getChannels(ctx, repo)
+	channels, err := n.app.GetChannels(ctx, repo)
 	if err != nil {
 		n.logger.Warn("failed to get channels", zap.Error(err), zap.String("repo", repo))
 		return
@@ -154,7 +158,7 @@ func (n *Notifier) notify(ctx context.Context, run *jobs.WorkflowRun) {
 	}
 
 	for _, channelID := range channels {
-		_, _, _, err := n.app.api.SendMessage(channelID, slack.MsgOptionAttachments(slackMsg))
+		err := n.app.SendMessage(ctx, channelID, slack.MsgOptionAttachments(slackMsg))
 		if err != nil {
 			n.logger.Warn("failed to send message",
 				zap.Error(err),

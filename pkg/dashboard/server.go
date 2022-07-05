@@ -29,15 +29,20 @@ type JobsState interface {
 }
 
 type Server struct {
-	logger *zap.Logger
-	server *http.Server
-	assets fs.FS
+	logger  *zap.Logger
+	enabled bool
+	server  *http.Server
+	assets  fs.FS
 
 	runners RunnersState
 	jobs    JobsState
 }
 
 func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs JobsState) *Server {
+	if config.Disabled {
+		return &Server{enabled: false}
+	}
+
 	logger = logger.Named("dashboard")
 
 	assets, _ := fs.Sub(assetsFS, "assets")
@@ -47,7 +52,8 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs Jo
 
 	mux := http.NewServeMux()
 	server := &Server{
-		logger: logger,
+		logger:  logger,
+		enabled: true,
 		server: &http.Server{
 			Addr:         config.GetAddr(),
 			ReadTimeout:  10 * time.Second,
@@ -67,6 +73,10 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs Jo
 }
 
 func (s *Server) Start(ctx context.Context, g *errgroup.Group) error {
+	if !s.enabled {
+		return nil
+	}
+
 	g.Go(func() error {
 		go func() {
 			<-ctx.Done()

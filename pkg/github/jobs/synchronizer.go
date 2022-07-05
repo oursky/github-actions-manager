@@ -46,6 +46,10 @@ func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv
 }
 
 func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
+	if s.config.Disabled {
+		return nil
+	}
+
 	runs := make(chan webhookObject[*github.WorkflowRun])
 	jobs := make(chan webhookObject[*github.WorkflowJob])
 
