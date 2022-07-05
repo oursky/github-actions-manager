@@ -1,0 +1,6 @@
+controllerURL="http://controller"
+tokenPath="/var/run/secrets/token/token"
+
+[agent]
+runnerDir="/runner"
+workDir="/home/runner/work"

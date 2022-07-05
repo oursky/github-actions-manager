@@ -1,0 +1,4 @@
+[controller]
+managerURL="http://127.0.0.1:8002"
+addr="0.0.0.0:8007"
+managerAuthKey="......"

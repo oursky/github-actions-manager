@@ -1,0 +1,37 @@
+[github]
+targetURL="https://github.com/org"
+
+[github.auth]
+type="App"
+
+[github.auth.app]
+appID=123456
+installationID=12345678
+privateKey="""
+-----BEGIN RSA PRIVATE KEY-----
+......
+-----END RSA PRIVATE KEY-----
+"""
+
+[github.jobs]
+disabled=false
+webhookServerAddr="0.0.0.0:8001"
+webhookSecret="......"
+
+[dashboard]
+disabled=false
+addr="0.0.0.0:8000"
+
+[store]
+type="KubeConfigMap"
+kubeNamespace="ns"
+
+[slack]
+disabled=false
+botToken="xoxb-......"
+appToken="xapp-......"
+
+[api]
+disabled=false
+addr="0.0.0.0:8002"
+authKeys=["......"]

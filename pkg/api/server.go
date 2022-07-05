@@ -59,7 +59,7 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 	}))
 
 	apiMux := http.NewServeMux()
-	mux.Handle("/api/v1/", httputil.UseKeyAuth(config.SharedKeys, apiMux))
+	mux.Handle("/api/v1/", httputil.UseKeyAuth(config.AuthKeys, apiMux))
 
 	apiMux.HandleFunc("/api/v1/token", server.apiToken)
 	apiMux.HandleFunc("/api/v1/runners", server.apiRunnersGet)

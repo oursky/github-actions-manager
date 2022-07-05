@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runner
+  namespace: test
+  labels:
+    app.kubernetes.io/name: runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runner
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: runner
+        github-actions-manager.oursky.com/runner: "true"
+      annotations:
+        github-actions-manager.oursky.com/runner-labels: test,x64
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: runner
+          image: local:57396/runner
+          args:
+            - -config=/etc/agent/agent.toml
+            - -loglevel=DEBUG
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /var/run/secrets/manager-token
+              name: manager-token
+            - mountPath: /etc/agent
+              name: config
+            - mountPath: /home/runner/work"
+              name: work
+      volumes:
+        - name: manager-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 7200
+                  audience: github-actions-manager
+        - name: config
+          configMap:
+            name: config
+        - name: work
+          emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: test
+  name: config
+data:
+  agent.toml: |
+    controllerURL="http://controller"
+    tokenPath="/var/run/secrets/token/token"
+    [agent]
+    runnerDir="/runner"
+    workDir="/home/runner/work"
