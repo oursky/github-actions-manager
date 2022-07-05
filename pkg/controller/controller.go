@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -15,9 +16,9 @@ type Controller struct {
 	monitor *monitor
 }
 
-func NewController(logger *zap.Logger, config *Config, provider Provider) *Controller {
+func NewController(logger *zap.Logger, config *Config, gatherer prometheus.Gatherer, provider Provider) *Controller {
 	managerAPI := newManagerAPI(config)
-	server := newServer(logger, config, managerAPI, provider)
+	server := newServer(logger, config, managerAPI, gatherer, provider)
 	monitor := newMonitor(logger, config, managerAPI, provider)
 
 	return &Controller{

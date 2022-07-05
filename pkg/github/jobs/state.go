@@ -53,10 +53,10 @@ type WorkflowJob struct {
 
 func (j *WorkflowJob) labels() prometheus.Labels {
 	labels := prometheus.Labels{
-		"workflow_job_id":  strconv.FormatInt(j.ID, 10),
-		"repository_owner": j.RepoOwner,
-		"repository_name":  j.RepoName,
-		"name":             j.Name,
+		"workflow_job_id":   strconv.FormatInt(j.ID, 10),
+		"repository_owner":  j.RepoOwner,
+		"repository_name":   j.RepoName,
+		"workflow_job_name": j.Name,
 	}
 	if j.RunnerID != nil {
 		labels["runner_id"] = strconv.FormatInt(*j.RunnerID, 10)

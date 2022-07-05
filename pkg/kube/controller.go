@@ -9,6 +9,7 @@ import (
 
 	"github.com/oursky/github-actions-manager/pkg/controller"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -45,7 +46,7 @@ type ControllerProvider struct {
 	pods     listercorev1.PodLister
 }
 
-func NewControllerProvider(logger *zap.Logger) (*ControllerProvider, error) {
+func NewControllerProvider(logger *zap.Logger, registry *prometheus.Registry) (*ControllerProvider, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
@@ -67,11 +68,16 @@ func NewControllerProvider(logger *zap.Logger) (*ControllerProvider, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	logger = logger.Named("kube")
+	state := NewControllerState(ctx, logger, kube, pods)
+
+	metrics := newMetrics(state)
+	registry.MustRegister(metrics)
+
 	return &ControllerProvider{
 		logger:   logger,
 		ctx:      ctx,
 		cancel:   cancel,
-		state:    NewControllerState(ctx, logger, kube, pods),
+		state:    state,
 		kube:     kube,
 		informer: informer,
 		pods:     pods,
