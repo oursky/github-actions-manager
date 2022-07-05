@@ -53,22 +53,22 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	var modules []cmd.Module
 
+	kv, err := kv.NewKubeConfigMapStore(logger, config.Store.KubeNamespace)
+	if err != nil {
+		return nil, fmt.Errorf("cannot setup store: %w", err)
+	}
+	modules = append(modules, kv)
+
 	runners := runners.NewSynchronizer(logger, &config.GitHub.Runners, target, registry)
 	modules = append(modules, runners)
 
-	jobs, err := jobs.NewSynchronizer(logger, &config.GitHub.Jobs, client, registry)
+	jobs, err := jobs.NewSynchronizer(logger, &config.GitHub.Jobs, client, kv, registry)
 	if err != nil {
 		return nil, fmt.Errorf("cannot setup job sync: %w", err)
 	}
 	modules = append(modules, jobs)
 
 	if !config.Slack.Disabled {
-		kv, err := kv.NewKubeConfigMapStore(logger, config.Store.KubeNamespace)
-		if err != nil {
-			return nil, fmt.Errorf("cannot setup store: %w", err)
-		}
-		modules = append(modules, kv)
-
 		slackApp := slack.NewApp(logger, &config.Slack, kv)
 		modules = append(modules, slackApp)
 

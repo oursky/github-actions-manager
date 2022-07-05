@@ -7,6 +7,8 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/utils/tomltypes"
 )
 
+const KVKey = "jobs"
+
 type Config struct {
 	ReplayEnabled     bool                `toml:"replay_enabled,omitempty"`
 	RetentionPeriod   *tomltypes.Duration `toml:"retention_period,omitempty"`
@@ -17,7 +19,7 @@ type Config struct {
 }
 
 func (c *Config) GetRetentionPeriod() time.Duration {
-	return defaults.Value(c.RetentionPeriod.Value(), 8*time.Hour)
+	return defaults.Value(c.RetentionPeriod.Value(), 1*time.Hour)
 }
 
 func (c *Config) GetSyncInterval() time.Duration {
