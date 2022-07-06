@@ -28,6 +28,7 @@ const (
 	annotationRunnerGroup  = "github-actions-manager.oursky.com/runner-group"
 	annotationRunnerLabels = "github-actions-manager.oursky.com/runner-labels"
 	annotationRunnerState  = "github-actions-manager.oursky.com/runner-state"
+	annotationBusy         = "github-actions-manager.oursky.com/busy"
 	finalizer              = "github-actions-manager.oursky.com/finalizer"
 )
 
@@ -179,9 +180,11 @@ func (p *ControllerProvider) CheckAgent(ctx context.Context, agent *controller.A
 func (p *ControllerProvider) updateAgentPod(ctx context.Context, pod *corev1.Pod, runnerName string, isBusy bool) error {
 	deletionCost := ""
 	safeToEvict := ""
+	busy := ""
 	if isBusy {
 		deletionCost = "100"
 		safeToEvict = "false"
+		busy = "true"
 	}
 
 	var patches []jsonPatch
@@ -190,6 +193,9 @@ func (p *ControllerProvider) updateAgentPod(ctx context.Context, pod *corev1.Pod
 	}
 	if pod.Annotations[annotationSafeToEvict] != safeToEvict {
 		patches = append(patches, annotationPatch(annotationSafeToEvict, safeToEvict))
+	}
+	if pod.Annotations[annotationBusy] != busy {
+		patches = append(patches, annotationPatch(annotationBusy, busy))
 	}
 	patches = append(patches, addFinalizerPatch(pod.ObjectMeta, finalizer)...)
 
