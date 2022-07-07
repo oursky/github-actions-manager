@@ -17,11 +17,6 @@ type runnerResponse struct {
 }
 
 func (s *Server) apiRunnerDelete(rw http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(rw, "unsupported method", http.StatusBadRequest)
-		return
-	}
-
 	idstr := strings.TrimPrefix(r.URL.Path, "/api/v1/runners/")
 
 	id, err := strconv.ParseInt(idstr, 10, 64)
@@ -40,11 +35,6 @@ func (s *Server) apiRunnerDelete(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiRunnersGet(rw http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(rw, "unsupported method", http.StatusBadRequest)
-		return
-	}
-
 	state := s.runners.State().Value()
 
 	var instances []runners.Instance

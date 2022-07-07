@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/utils/channels"
@@ -50,7 +51,7 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs Jo
 		assets = os.DirFS(*config.AssetsDir)
 	}
 
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 	server := &Server{
 		logger:  logger,
 		enabled: true,
@@ -58,7 +59,7 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs Jo
 			Addr:         config.GetAddr(),
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
-			Handler:      mux,
+			Handler:      r,
 			ErrorLog:     zap.NewStdLog(logger),
 		},
 		assets:  assets,
@@ -66,8 +67,8 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, jobs Jo
 		jobs:    jobs,
 	}
 
-	mux.HandleFunc("/", server.index)
-	mux.HandleFunc("/styles.css", server.styles)
+	r.HandleFunc("/", server.index).Methods("GET")
+	r.HandleFunc("/styles.css", server.styles).Methods("GET")
 
 	return server
 }

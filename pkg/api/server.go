@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/oursky/github-actions-manager/pkg/github"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/utils/channels"
@@ -38,7 +39,7 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 
 	logger = logger.Named("api")
 
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 	server := &Server{
 		logger:  logger,
 		enabled: true,
@@ -46,7 +47,7 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 			Addr:         config.GetAddr(),
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
-			Handler:      mux,
+			Handler:      r,
 			ErrorLog:     zap.NewStdLog(logger),
 		},
 		runners:  runners,
@@ -54,16 +55,16 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 		regToken: github.NewRegistrationTokenStore(logger, target),
 	}
 
-	mux.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
+	r.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
 		ErrorLog: zap.NewStdLog(logger.Named("prom")),
 	}))
 
-	apiMux := http.NewServeMux()
-	mux.Handle("/api/v1/", httputil.UseKeyAuth(config.AuthKeys, apiMux))
+	apiR := mux.NewRouter()
+	r.Handle("/api/v1/", httputil.UseKeyAuth(config.AuthKeys, apiR))
 
-	apiMux.HandleFunc("/api/v1/token", server.apiToken)
-	apiMux.HandleFunc("/api/v1/runners", server.apiRunnersGet)
-	apiMux.HandleFunc("/api/v1/runners/", server.apiRunnerDelete)
+	apiR.HandleFunc("/api/v1/token", server.apiToken).Methods("GET")
+	apiR.HandleFunc("/api/v1/runners", server.apiRunnersGet).Methods("GET")
+	apiR.HandleFunc("/api/v1/runners/", server.apiRunnerDelete).Methods("DELETE")
 
 	return server
 }

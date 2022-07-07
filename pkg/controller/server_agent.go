@@ -30,8 +30,6 @@ func (s *server) apiAgentGetDelete(rw http.ResponseWriter, r *http.Request) {
 		s.apiAgentGet(rw, r, id)
 	case http.MethodDelete:
 		s.apiAgentDelete(rw, r, id)
-	default:
-		http.Error(rw, "unsupported method", http.StatusBadRequest)
 	}
 }
 
