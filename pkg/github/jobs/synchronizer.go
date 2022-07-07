@@ -54,7 +54,7 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 	jobs := make(chan webhookObject[*github.WorkflowJob])
 
 	if err := s.server.Start(ctx, g, runs, jobs); err != nil {
-		return err
+		return fmt.Errorf("jobs: %w", err)
 	}
 	g.Go(func() error {
 		s.run(ctx, runs, jobs)

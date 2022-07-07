@@ -23,7 +23,7 @@ func Run(logger *zap.Logger, modules []Module) error {
 	logger.Info("starting...")
 	for _, m := range modules {
 		if err := m.Start(ctx, g); err != nil {
-			return fmt.Errorf("error while starting: %w", err)
+			return fmt.Errorf("error while starting %T : %w", m, err)
 		}
 	}
 

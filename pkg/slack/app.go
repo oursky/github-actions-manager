@@ -114,7 +114,7 @@ func (a *App) Start(ctx context.Context, g *errgroup.Group) error {
 	g.Go(func() error {
 		err := client.RunContext(ctx)
 		if !errors.Is(err, context.Canceled) {
-			return err
+			return fmt.Errorf("slack: %w", err)
 		}
 		return nil
 	})

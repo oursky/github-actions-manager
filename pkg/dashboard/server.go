@@ -89,7 +89,7 @@ func (s *Server) Start(ctx context.Context, g *errgroup.Group) error {
 		s.logger.Info("starting server", zap.String("addr", s.server.Addr))
 		err := s.server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("failed to run server: %w", err)
+			return fmt.Errorf("dashboard: failed to run server: %w", err)
 		}
 		return nil
 	})
