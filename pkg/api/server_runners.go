@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
 
 	"go.uber.org/zap"
@@ -17,7 +17,8 @@ type runnerResponse struct {
 }
 
 func (s *Server) apiRunnerDelete(rw http.ResponseWriter, r *http.Request) {
-	idstr := strings.TrimPrefix(r.URL.Path, "/api/v1/runners/")
+	params := mux.Vars(r)
+	idstr := params["id"]
 
 	id, err := strconv.ParseInt(idstr, 10, 64)
 	if err != nil {

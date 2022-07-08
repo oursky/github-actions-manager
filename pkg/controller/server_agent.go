@@ -2,10 +2,9 @@ package controller
 
 import (
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/oursky/github-actions-manager/pkg/utils/httputil"
 
 	"go.uber.org/zap"
@@ -19,21 +18,9 @@ type AgentResponse struct {
 	Labels    []string `json:"labels"`
 }
 
-func (s *server) apiAgentGetDelete(rw http.ResponseWriter, r *http.Request) {
-	id, err := url.PathUnescape(strings.TrimPrefix(r.URL.Path, "/api/v1/agent/"))
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-	}
-
-	switch r.Method {
-	case http.MethodGet:
-		s.apiAgentGet(rw, r, id)
-	case http.MethodDelete:
-		s.apiAgentDelete(rw, r, id)
-	}
-}
-
-func (s *server) apiAgentGet(rw http.ResponseWriter, r *http.Request, id string) {
+func (s *server) apiAgentGet(rw http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["id"]
 	agent, err := s.provider.State().GetAgent(id)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -45,7 +32,9 @@ func (s *server) apiAgentGet(rw http.ResponseWriter, r *http.Request, id string)
 	httputil.RespondJSON(rw, agent)
 }
 
-func (s *server) apiAgentDelete(rw http.ResponseWriter, r *http.Request, id string) {
+func (s *server) apiAgentDelete(rw http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["id"]
 	agent, err := s.provider.State().GetAgent(id)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)

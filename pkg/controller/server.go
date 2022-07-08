@@ -42,11 +42,12 @@ func newServer(logger *zap.Logger, config *Config, managerAPI *managerAPI, gathe
 		ErrorLog: zap.NewStdLog(logger.Named("prom")),
 	}))
 
-	apiR := mux.NewRouter()
-	r.Handle("/api/v1/", useAuth(provider, apiR))
+	apiR := mux.NewRouter().PathPrefix("/api/v1").Subrouter()
+	r.PathPrefix("/api/v1").Handler(useAuth(provider, apiR))
+	apiR.HandleFunc("/agent", server.apiAgentPost).Methods("POST")
+	apiR.HandleFunc("/agent/{id}", server.apiAgentGet).Methods("GET")
 
-	apiR.HandleFunc("/api/v1/agent", server.apiAgentPost).Methods("POST")
-	apiR.HandleFunc("/api/v1/agent/", server.apiAgentGetDelete).Methods("GET", "DELETE")
+	apiR.HandleFunc("/agent/{id}", server.apiAgentDelete).Methods("DELETE")
 
 	return server
 }
