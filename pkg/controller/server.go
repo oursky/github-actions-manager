@@ -42,8 +42,8 @@ func newServer(logger *zap.Logger, config *Config, managerAPI *managerAPI, gathe
 		ErrorLog: zap.NewStdLog(logger.Named("prom")),
 	}))
 
-	apiR := mux.NewRouter().PathPrefix("/api/v1").Subrouter()
-	r.PathPrefix("/api/v1").Handler(useAuth(provider, apiR))
+	apiR := r.PathPrefix("/api/v1").Subrouter()
+	apiR.Use(NewProviderAuthMiddleware(provider).Middleware)
 	apiR.HandleFunc("/agent", server.apiAgentPost).Methods("POST")
 	apiR.HandleFunc("/agent/{id}", server.apiAgentGet).Methods("GET")
 

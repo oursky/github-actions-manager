@@ -58,8 +58,8 @@ func NewServer(logger *zap.Logger, config *Config, runners RunnersState, target 
 	r.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
 		ErrorLog: zap.NewStdLog(logger.Named("prom")),
 	}))
-	apiR := mux.NewRouter().PathPrefix("/api/v1").Subrouter()
-	r.PathPrefix("/api/v1").Handler(httputil.UseKeyAuth(config.AuthKeys, apiR))
+	apiR := r.PathPrefix("/api/v1").Subrouter()
+	apiR.Use(httputil.NewKeyAuthMiddleware(config.AuthKeys).Middleware)
 	apiR.HandleFunc("/token", server.apiToken).Methods("GET")
 	apiR.HandleFunc("/runners", server.apiRunnersGet).Methods("GET")
 	apiR.HandleFunc("/runners/{id}", server.apiRunnerDelete).Methods("DELETE")
