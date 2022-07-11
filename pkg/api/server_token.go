@@ -7,11 +7,6 @@ import (
 )
 
 func (s *Server) apiToken(rw http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(rw, "unsupported method", http.StatusBadRequest)
-		return
-	}
-
 	token, err := s.regToken.Get(r.Context())
 	if err != nil {
 		rw.WriteHeader(500)

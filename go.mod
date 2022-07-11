@@ -8,6 +8,7 @@ require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/google/go-github/v45 v45.1.0
+	github.com/gorilla/mux v1.8.0
 	github.com/slack-go/slack v0.11.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2

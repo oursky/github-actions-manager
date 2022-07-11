@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -23,29 +24,30 @@ type server struct {
 func newServer(logger *zap.Logger, config *Config, managerAPI *managerAPI, gatherer prometheus.Gatherer, provider Provider) *server {
 	logger = logger.Named("server")
 
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 	server := &server{
 		logger: logger,
 		server: &http.Server{
 			Addr:         config.GetAddr(),
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
-			Handler:      mux,
+			Handler:      r,
 			ErrorLog:     zap.NewStdLog(logger),
 		},
 		managerAPI: managerAPI,
 		provider:   provider,
 	}
 
-	mux.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
+	r.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{
 		ErrorLog: zap.NewStdLog(logger.Named("prom")),
 	}))
 
-	apiMux := http.NewServeMux()
-	mux.Handle("/api/v1/", useAuth(provider, apiMux))
+	apiR := r.PathPrefix("/api/v1").Subrouter()
+	apiR.Use(NewProviderAuthMiddleware(provider).Middleware)
+	apiR.HandleFunc("/agent", server.apiAgentPost).Methods("POST")
+	apiR.HandleFunc("/agent/{id}", server.apiAgentGet).Methods("GET")
 
-	apiMux.HandleFunc("/api/v1/agent", server.apiAgentPost)
-	apiMux.HandleFunc("/api/v1/agent/", server.apiAgentGetDelete)
+	apiR.HandleFunc("/agent/{id}", server.apiAgentDelete).Methods("DELETE")
 
 	return server
 }
