@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -77,6 +78,8 @@ func (s *Synchronizer) run(
 
 	s.loadState(ctx, runs, jobs)
 
+	syncInterval := s.config.GetSyncInterval()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -109,6 +112,52 @@ func (s *Synchronizer) run(
 			runs[runKey] = cell[github.WorkflowRun]{
 				UpdatedAt: time.Now(),
 				Object:    run,
+			}
+		case <-time.After(syncInterval):
+			if len(runs) == 0 {
+				continue
+			}
+			// 0: runs; 1: jobs
+			choosenType := rand.Intn(2)
+			switch choosenType {
+			case 0:
+				var choosenKey Key
+				for key, _ := range runs {
+					choosenKey = key
+					break
+				}
+				updatedRun, _, err := s.github.Actions.GetWorkflowRunByID(ctx, choosenKey.RepoOwner, choosenKey.RepoName, choosenKey.ID)
+				if err != nil {
+					s.logger.Warn("failed to get workflow run",
+						zap.Error(err),
+						zap.String("owner", choosenKey.RepoOwner),
+						zap.String("repo", choosenKey.RepoName),
+						zap.Int64("id", choosenKey.ID),
+					)
+				}
+				runs[choosenKey] = cell[github.WorkflowRun]{
+					UpdatedAt: runs[choosenKey].UpdatedAt,
+					Object:    updatedRun,
+				}
+			case 1:
+				var choosenKey Key
+				for key, _ := range jobs {
+					choosenKey = key
+					break
+				}
+				updatedJob, _, err := s.github.Actions.GetWorkflowJobByID(ctx, choosenKey.RepoOwner, choosenKey.RepoName, choosenKey.ID)
+				if err != nil {
+					s.logger.Warn("failed to get workflow job",
+						zap.Error(err),
+						zap.String("owner", choosenKey.RepoOwner),
+						zap.String("repo", choosenKey.RepoName),
+						zap.Int64("id", choosenKey.ID),
+					)
+				}
+				jobs[choosenKey] = cell[github.WorkflowJob]{
+					UpdatedAt: jobs[choosenKey].UpdatedAt,
+					Object:    updatedJob,
+				}
 			}
 		}
 
