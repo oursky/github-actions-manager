@@ -4,27 +4,25 @@ import (
 	"time"
 
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
-	"github.com/oursky/github-actions-manager/pkg/utils/tomltypes"
 )
 
 const KVKey = "jobs"
 
 type Config struct {
-	Disabled          bool                `toml:"disabled"`
-	ReplayEnabled     bool                `toml:"replay_enabled,omitempty"`
-	RetentionPeriod   *tomltypes.Duration `toml:"retention_period,omitempty"`
-	SyncInterval      *tomltypes.Duration `toml:"syncInterval,omitempty"`
-	SyncPageSize      *int                `toml:"syncPageSize,omitempty" validate:"omitempty,min=1,max=100"`
-	WebhookServerAddr *string             `toml:"webhookServerAddr,omitempty" validate:"omitempty,tcp_addr"`
-	WebhookSecret     string              `toml:"webhookSecret" validate:"required_if=Disabled false"`
+	Disabled          bool
+	RetentionPeriod   *time.Duration
+	SyncInterval      *time.Duration
+	SyncPageSize      *int    `validate:"omitempty,min=1,max=100"`
+	WebhookServerAddr *string `validate:"omitempty,tcp_addr"`
+	WebhookSecret     string  `validate:"required_if=Disabled false"`
 }
 
 func (c *Config) GetRetentionPeriod() time.Duration {
-	return defaults.Value(c.RetentionPeriod.Value(), 1*time.Hour)
+	return defaults.Value(c.RetentionPeriod, 1*time.Hour)
 }
 
 func (c *Config) GetSyncInterval() time.Duration {
-	return defaults.Value(c.SyncInterval.Value(), 10*time.Second)
+	return defaults.Value(c.SyncInterval, 10*time.Second)
 }
 
 func (c *Config) GetSyncPageSize() int {

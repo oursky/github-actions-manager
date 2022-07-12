@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
+	"time"
 
 	"github.com/oursky/github-actions-manager/pkg/api"
 	"github.com/oursky/github-actions-manager/pkg/dashboard"
@@ -12,49 +12,54 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/github/runners"
 	"github.com/oursky/github-actions-manager/pkg/kv"
 	"github.com/oursky/github-actions-manager/pkg/slack"
-	"github.com/oursky/github-actions-manager/pkg/utils/tomltypes"
 
-	"github.com/BurntSushi/toml"
 	"github.com/go-playground/validator/v10"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	GitHub    GitHubConfig     `toml:"github"`
-	Dashboard dashboard.Config `toml:"dashboard"`
-	Store     kv.Config        `toml:"store"`
-	Slack     slack.Config     `toml:"slack"`
-	API       api.Config       `toml:"api"`
+	GitHub    GitHubConfig
+	Dashboard dashboard.Config
+	Store     kv.Config
+	Slack     slack.Config
+	API       api.Config
 }
 
 type GitHubConfig struct {
-	TargetURL   string              `toml:"targetURL" validate:"required,url"`
-	RPS         *float64            `toml:"rps,omitempty"`
-	Brust       *int                `toml:"brust,omitempty"`
-	HTTPTimeout *tomltypes.Duration `toml:"httpTimeout,omitempty"`
-	Auth        auth.Config         `toml:"auth"`
-	Runners     runners.Config      `toml:"runners,omitempty"`
-	Jobs        jobs.Config         `toml:"jobs,omitempty"`
+	TargetURL   string `validate:"required,url"`
+	RPS         *float64
+	Brust       *int
+	HTTPTimeout *time.Duration
+	Auth        auth.Config
+	Runners     runners.Config
+	Jobs        jobs.Config
 }
 
 type StoreConfig struct {
-	KubeNamespace string `toml:"kubeNamespace,omitempty" validate:"required"`
+	KubeNamespace string `validate:"required"`
 }
 
 func NewConfig(path string) (*Config, error) {
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetConfigType("toml")
+	v.SetEnvPrefix("GHA_MANAGER")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+	v.SetTypeByDefaultValue(true)
+
+	if path != "" {
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("failed to decode config: %w", err)
+		}
+	}
+
 	var config Config
-	if _, err := toml.DecodeFile(path, &config); err != nil {
-		return nil, fmt.Errorf("failed to decode config: %w", err)
+	if err := v.Unmarshal(&config); err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	validate := validator.New()
-	validate.RegisterTagNameFunc(func(f reflect.StructField) string {
-		name, _, _ := strings.Cut(f.Tag.Get("toml"), ",")
-		if name == "-" {
-			return ""
-		}
-		return name
-	})
-
 	if err := validate.Struct(config); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}

@@ -14,8 +14,8 @@ const (
 )
 
 type Config struct {
-	Type          Type   `toml:"type" validate:"required,oneof=InMemory KubeConfigMap"`
-	KubeNamespace string `toml:"kubeNamespace,omitempty" validate:"required_if=Type KubeConfigMap"`
+	Type          Type   `validate:"required,oneof=InMemory KubeConfigMap"`
+	KubeNamespace string `validate:"required_if=Type KubeConfigMap"`
 }
 
 func NewStore(logger *zap.Logger, config *Config) (Store, error) {

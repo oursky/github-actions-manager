@@ -43,7 +43,7 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   defaults.Value(config.GitHub.HTTPTimeout.Value(), 10*time.Second),
+		Timeout:   defaults.Value(config.GitHub.HTTPTimeout, 10*time.Second),
 	}
 
 	target, err := github.NewTarget(client, config.GitHub.TargetURL)

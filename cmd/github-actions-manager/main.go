@@ -18,10 +18,6 @@ func main() {
 	logger, _ := cfg.Build()
 	defer logger.Sync()
 
-	if *configPath == "" {
-		logger.Fatal("config is required")
-	}
-
 	config, err := NewConfig(*configPath)
 	if err != nil {
 		logger.Fatal("failed to load config", zap.Error(err))
