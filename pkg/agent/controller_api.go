@@ -81,7 +81,7 @@ func (c *controllerAPI) GetAgent(ctx context.Context, id string) (name string, s
 	return resp.RunnerName, resp.State, nil
 }
 
-func (c *controllerAPI) DeleteAgent(ctx context.Context, id string) error {
+func (c *controllerAPI) TerminateAgent(ctx context.Context, id string) error {
 	r, err := c.provider.NewControllerRequest(
 		ctx,
 		http.MethodDelete,

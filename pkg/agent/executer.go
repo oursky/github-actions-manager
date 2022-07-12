@@ -68,18 +68,19 @@ func (m *executer) execute(ctx context.Context) {
 
 	m.provider.OnAgentRegistered(resp.Agent)
 
-	m.agentCh <- resp.Agent
-
 	m.logger.Info("configuring runner",
 		zap.String("target", resp.TargetURL),
 		zap.String("group", resp.Group),
 		zap.Strings("labels", resp.Labels),
 	)
-	err = m.configure(ctx, resp)
+	err = m.configure(context.Background(), resp)
 	if err != nil {
 		m.logger.Error("failed to configure runner", zap.Error(err))
 		return
 	}
+
+	// Ensure runner is configured before termination.
+	m.agentCh <- resp.Agent
 
 	m.logger.Info("starting runner")
 	err = m.start(ctx)

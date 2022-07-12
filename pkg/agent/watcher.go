@@ -45,20 +45,20 @@ func (w *watcher) run(ctx context.Context) error {
 	case agent = <-w.agentCh:
 	}
 
-	needDelete := w.wait(ctx, agent)
+	needTermination := w.wait(ctx, agent)
 
-	for needDelete {
-		w.logger.Info("deleting agent", zap.String("id", agent.ID))
-		err := w.controllerAPI.DeleteAgent(context.Background(), agent.ID)
+	for needTermination {
+		w.logger.Info("terminating agent", zap.String("id", agent.ID))
+		err := w.controllerAPI.TerminateAgent(context.Background(), agent.ID)
 
 		var errStatus httputil.ErrHTTPStatus
 		if errors.As(err, &errStatus) && errStatus == http.StatusNotFound {
-			needDelete = false
+			needTermination = false
 		} else if err != nil {
-			w.logger.Warn("failed to delete agent", zap.Error(err), zap.String("id", agent.ID))
+			w.logger.Warn("failed to terminate agent", zap.Error(err), zap.String("id", agent.ID))
 			time.Sleep(5 * time.Second)
 		} else {
-			needDelete = false
+			needTermination = false
 		}
 	}
 
