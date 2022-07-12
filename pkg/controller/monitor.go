@@ -203,13 +203,15 @@ func (m *monitor) checkAgent(
 			}
 		}
 
-		if err := m.provider.TerminateAgent(ctx, *agent); err != nil {
-			m.logger.Info("failed to terminate agent", zap.Error(err))
-			dead = false
+		if dead {
+			if err := m.provider.TerminateAgent(ctx, *agent); err != nil {
+				m.logger.Info("failed to terminate agent", zap.Error(err))
+				dead = false
+			}
 		}
 
 		if dead {
-			m.logger.Info("cleaning up agent", zap.String("id", agent.ID))
+			m.logger.Info("deleting agent", zap.String("id", agent.ID))
 			return m.provider.State().DeleteAgent(agent.ID)
 		}
 		return nil
