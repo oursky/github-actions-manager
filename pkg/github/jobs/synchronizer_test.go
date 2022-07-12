@@ -17,7 +17,7 @@ import (
 	"gopkg.in/h2non/gock.v1"
 )
 
-func Ptr[T any](v T) *T {
+func ptr[T any](v T) *T {
 	return &v
 }
 func TestRun(t *testing.T) {
@@ -42,10 +42,10 @@ func TestRun(t *testing.T) {
 	defer gock.Off()
 
 	testGithubWorkflowRun := &github.WorkflowRun{
-		ID:             Ptr(int64(0)),
-		Status:         Ptr("succeed"),
-		Conclusion:     Ptr("succeed"),
-		WorkflowID:     Ptr(int64(0)),
+		ID:             ptr(int64(0)),
+		Status:         ptr("succeed"),
+		Conclusion:     ptr("succeed"),
+		WorkflowID:     ptr(int64(0)),
 		HeadCommit:     &github.HeadCommit{},
 		HeadRepository: &github.Repository{},
 	}
@@ -68,10 +68,10 @@ func TestRun(t *testing.T) {
 	}
 
 	testGithubWorkflowJob := &github.WorkflowJob{
-		ID:         Ptr(int64(0)),
-		HTMLURL:    Ptr("testing"),
-		Status:     Ptr("succeed"),
-		Conclusion: Ptr("succeed"),
+		ID:         ptr(int64(0)),
+		HTMLURL:    ptr("testing"),
+		Status:     ptr("succeed"),
+		Conclusion: ptr("succeed"),
 	}
 
 	var startedAt *time.Time
