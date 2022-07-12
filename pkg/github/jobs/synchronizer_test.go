@@ -101,15 +101,15 @@ func TestRun(t *testing.T) {
 
 	testWorkflowRun.Jobs = append(testWorkflowRun.Jobs, testWorkflowJob)
 
-	testWebhookJob := webhookObject[*github.WorkflowJob]{
+	testWebhookJob := NewWebhookObject(
 		Key{ID: int64(0), RepoOwner: "tester", RepoName: "testing"},
 		testGithubWorkflowJob,
-	}
+	)
 
-	testWebhookRun := webhookObject[*github.WorkflowRun]{
+	testWebhookRun := NewWebhookObject(
 		Key{ID: int64(0), RepoOwner: "tester", RepoName: "testing"},
 		testGithubWorkflowRun,
-	}
+	)
 
 	gock.New("https://api.github.com/repos/(.*)/(.*)/actions/jobs/(.*)").
 		Persist().
