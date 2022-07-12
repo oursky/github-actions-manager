@@ -43,8 +43,8 @@ func TestRun(t *testing.T) {
 
 	testGithubWorkflowRun := &github.WorkflowRun{
 		ID:             ptr(int64(0)),
-		Status:         ptr("succeed"),
-		Conclusion:     ptr("succeed"),
+		Status:         ptr("in_progress"),
+		Conclusion:     ptr(""),
 		WorkflowID:     ptr(int64(0)),
 		HeadCommit:     &github.HeadCommit{},
 		HeadRepository: &github.Repository{},
@@ -59,8 +59,8 @@ func TestRun(t *testing.T) {
 
 		Name:       testGithubWorkflowRun.GetName(),
 		URL:        testGithubWorkflowRun.GetHTMLURL(),
-		Status:     testGithubWorkflowRun.GetStatus(),
-		Conclusion: testGithubWorkflowRun.GetConclusion(),
+		Status:     "completed",
+		Conclusion: "success",
 
 		StartedAt:          testGithubWorkflowRun.GetRunStartedAt().Time,
 		CommitMessageTitle: testCommitMsgTitle,
@@ -70,8 +70,8 @@ func TestRun(t *testing.T) {
 	testGithubWorkflowJob := &github.WorkflowJob{
 		ID:         ptr(int64(0)),
 		HTMLURL:    ptr("testing"),
-		Status:     ptr("succeed"),
-		Conclusion: ptr("succeed"),
+		Status:     ptr("in_progress"),
+		Conclusion: ptr(""),
 	}
 
 	var startedAt *time.Time
@@ -89,8 +89,8 @@ func TestRun(t *testing.T) {
 
 		Name:       testGithubWorkflowJob.GetName(),
 		URL:        testGithubWorkflowJob.GetHTMLURL(),
-		Status:     testGithubWorkflowJob.GetStatus(),
-		Conclusion: testGithubWorkflowJob.GetConclusion(),
+		Status:     "completed",
+		Conclusion: "success",
 
 		StartedAt:    startedAt,
 		CompletedAt:  completedAt,
@@ -111,15 +111,31 @@ func TestRun(t *testing.T) {
 		testGithubWorkflowRun,
 	)
 
+	testUpdatedGithubWorkflowJob := &github.WorkflowJob{
+		ID:         ptr(int64(0)),
+		HTMLURL:    ptr("testing"),
+		Status:     ptr("completed"),
+		Conclusion: ptr("success"),
+	}
+
+	testUpdatedGithubWorkflowRun := &github.WorkflowRun{
+		ID:             ptr(int64(0)),
+		Status:         ptr("completed"),
+		Conclusion:     ptr("success"),
+		WorkflowID:     ptr(int64(0)),
+		HeadCommit:     &github.HeadCommit{},
+		HeadRepository: &github.Repository{},
+	}
+
 	gock.New("https://api.github.com/repos/(.*)/(.*)/actions/jobs/(.*)").
 		Persist().
 		Reply(200).
-		JSON(testGithubWorkflowJob)
+		JSON(testUpdatedGithubWorkflowJob)
 
 	gock.New("https://api.github.com/repos/(.*)/(.*)/actions/runs/(.*)").
 		Persist().
 		Reply(200).
-		JSON(testGithubWorkflowRun)
+		JSON(testUpdatedGithubWorkflowRun)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
