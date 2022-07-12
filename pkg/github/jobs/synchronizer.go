@@ -26,8 +26,10 @@ type Synchronizer struct {
 	github *github.Client
 	kv     kv.Store
 
-	state   *channels.Broadcaster[*State]
-	metrics *metrics
+	state       *channels.Broadcaster[*State]
+	metrics     *metrics
+	webhookRuns chan webhookObject[*github.WorkflowRun]
+	webhookJobs chan webhookObject[*github.WorkflowJob]
 }
 
 func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv kv.Store, registry *prometheus.Registry) (*Synchronizer, error) {
@@ -35,14 +37,19 @@ func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv
 
 	server := newWebhookServer(logger, config.GetWebhookServerAddr(), config.WebhookSecret)
 
+	runs := make(chan webhookObject[*github.WorkflowRun])
+	jobs := make(chan webhookObject[*github.WorkflowJob])
+
 	return &Synchronizer{
-		logger:  logger,
-		config:  config,
-		server:  server,
-		github:  github.NewClient(client),
-		kv:      kv,
-		state:   channels.NewBroadcaster[*State](nil),
-		metrics: newMetrics(registry),
+		logger:      logger,
+		config:      config,
+		server:      server,
+		github:      github.NewClient(client),
+		kv:          kv,
+		state:       channels.NewBroadcaster[*State](nil),
+		metrics:     newMetrics(registry),
+		webhookRuns: runs,
+		webhookJobs: jobs,
 	}, nil
 }
 
@@ -51,14 +58,11 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 		return nil
 	}
 
-	runs := make(chan webhookObject[*github.WorkflowRun])
-	jobs := make(chan webhookObject[*github.WorkflowJob])
-
-	if err := s.server.Start(ctx, g, runs, jobs); err != nil {
+	if err := s.server.Start(ctx, g, s.webhookRuns, s.webhookJobs); err != nil {
 		return fmt.Errorf("jobs: %w", err)
 	}
 	g.Go(func() error {
-		s.run(ctx, runs, jobs)
+		s.run(ctx, s.webhookRuns, s.webhookJobs)
 		return nil
 	})
 	return nil
@@ -71,8 +75,7 @@ func (s *Synchronizer) State() *channels.Broadcaster[*State] {
 func (s *Synchronizer) run(
 	ctx context.Context,
 	webhookRuns <-chan webhookObject[*github.WorkflowRun],
-	webhookJobs <-chan webhookObject[*github.WorkflowJob],
-) {
+	webhookJobs <-chan webhookObject[*github.WorkflowJob]) {
 	runs := make(map[Key]cell[github.WorkflowRun])
 	jobs := make(map[Key]cell[github.WorkflowJob])
 

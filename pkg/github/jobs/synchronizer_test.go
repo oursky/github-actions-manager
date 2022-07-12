@@ -26,7 +26,7 @@ func TestRun(t *testing.T) {
 	sync_page_size := 5
 	webhook_server_addr := "127.0.0.1:8001"
 	config := &Config{
-		Disabled:          true,
+		Disabled:          false,
 		ReplayEnabled:     true,
 		RetentionPeriod:   &tomltypes.Duration{1 * time.Hour},
 		SyncInterval:      &tomltypes.Duration{5 * time.Second},
@@ -123,14 +123,11 @@ func TestRun(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, ctx = errgroup.WithContext(ctx)
-
-	runs := make(chan webhookObject[*github.WorkflowRun])
-	jobs := make(chan webhookObject[*github.WorkflowJob])
+	g, ctx := errgroup.WithContext(ctx)
 	s, _ := NewSynchronizer(logger, config, client, kv, registry)
-	go s.run(ctx, runs, jobs)
-	runs <- testWebhookRun
-	jobs <- testWebhookJob
+	s.Start(ctx, g)
+	s.webhookRuns <- testWebhookRun
+	s.webhookJobs <- testWebhookJob
 	time.Sleep(20 * time.Second)
 	assert.Equal(t, testWorkflowRun, s.metrics.state.WorkflowRuns[0])
 
