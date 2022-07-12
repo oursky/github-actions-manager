@@ -112,3 +112,10 @@ func (s *webhookServer) handle(
 		})
 	}
 }
+
+func NewWebhookObject[T any](key Key, object T) webhookObject[T] {
+	return webhookObject[T]{
+		key,
+		object,
+	}
+}

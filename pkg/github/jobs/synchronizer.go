@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	gh "github.com/oursky/github-actions-manager/pkg/github"
 	"github.com/oursky/github-actions-manager/pkg/kv"
@@ -26,23 +25,32 @@ type Synchronizer struct {
 	github *github.Client
 	kv     kv.Store
 
-	state   *channels.Broadcaster[*State]
-	metrics *metrics
+	state       *channels.Broadcaster[*State]
+	metrics     *metrics
+	webhookRuns chan webhookObject[*github.WorkflowRun]
+	webhookJobs chan webhookObject[*github.WorkflowJob]
+	clock       Clock
 }
 
-func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv kv.Store, registry *prometheus.Registry) (*Synchronizer, error) {
+func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv kv.Store, registry *prometheus.Registry, clock Clock) (*Synchronizer, error) {
 	logger = logger.Named("jobs-sync")
 
 	server := newWebhookServer(logger, config.GetWebhookServerAddr(), config.WebhookSecret)
 
+	runs := make(chan webhookObject[*github.WorkflowRun])
+	jobs := make(chan webhookObject[*github.WorkflowJob])
+
 	return &Synchronizer{
-		logger:  logger,
-		config:  config,
-		server:  server,
-		github:  github.NewClient(client),
-		kv:      kv,
-		state:   channels.NewBroadcaster[*State](nil),
-		metrics: newMetrics(registry),
+		logger:      logger,
+		config:      config,
+		server:      server,
+		github:      github.NewClient(client),
+		kv:          kv,
+		state:       channels.NewBroadcaster[*State](nil),
+		metrics:     newMetrics(registry),
+		webhookRuns: runs,
+		webhookJobs: jobs,
+		clock:       clock,
 	}, nil
 }
 
@@ -51,14 +59,11 @@ func (s *Synchronizer) Start(ctx context.Context, g *errgroup.Group) error {
 		return nil
 	}
 
-	runs := make(chan webhookObject[*github.WorkflowRun])
-	jobs := make(chan webhookObject[*github.WorkflowJob])
-
-	if err := s.server.Start(ctx, g, runs, jobs); err != nil {
+	if err := s.server.Start(ctx, g, s.webhookRuns, s.webhookJobs); err != nil {
 		return fmt.Errorf("jobs: %w", err)
 	}
 	g.Go(func() error {
-		s.run(ctx, runs, jobs)
+		s.run(ctx, s.webhookRuns, s.webhookJobs)
 		return nil
 	})
 	return nil
@@ -71,8 +76,7 @@ func (s *Synchronizer) State() *channels.Broadcaster[*State] {
 func (s *Synchronizer) run(
 	ctx context.Context,
 	webhookRuns <-chan webhookObject[*github.WorkflowRun],
-	webhookJobs <-chan webhookObject[*github.WorkflowJob],
-) {
+	webhookJobs <-chan webhookObject[*github.WorkflowJob]) {
 	runs := make(map[Key]cell[github.WorkflowRun])
 	jobs := make(map[Key]cell[github.WorkflowJob])
 
@@ -87,13 +91,13 @@ func (s *Synchronizer) run(
 
 		case run := <-webhookRuns:
 			runs[run.Key] = cell[github.WorkflowRun]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    run.Object,
 			}
 
 		case job := <-webhookJobs:
 			jobs[job.Key] = cell[github.WorkflowJob]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    job.Object,
 			}
 
@@ -110,10 +114,10 @@ func (s *Synchronizer) run(
 			}
 
 			runs[runKey] = cell[github.WorkflowRun]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    run,
 			}
-		case <-time.After(syncInterval):
+		case <-s.clock.After(syncInterval):
 			if len(runs) == 0 {
 				continue
 			}
@@ -161,7 +165,7 @@ func (s *Synchronizer) run(
 			}
 		}
 
-		retentionLimit := time.Now().Add(-s.config.GetRetentionPeriod())
+		retentionLimit := s.clock.Now().Add(-s.config.GetRetentionPeriod())
 
 		runRefs := make(map[Key]int)
 		for key, job := range jobs {
@@ -222,7 +226,7 @@ func (s *Synchronizer) loadState(
 			continue
 		}
 		runs[Key{RepoOwner: owner, RepoName: repo, ID: id}] = cell[github.WorkflowRun]{
-			UpdatedAt: time.Now(),
+			UpdatedAt: s.clock.Now(),
 			Object:    wrun,
 		}
 
@@ -236,7 +240,7 @@ func (s *Synchronizer) loadState(
 		}
 		for _, job := range wjobs.Jobs {
 			jobs[Key{RepoOwner: owner, RepoName: repo, ID: job.GetID()}] = cell[github.WorkflowJob]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    job,
 			}
 		}
