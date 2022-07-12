@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	gh "github.com/oursky/github-actions-manager/pkg/github"
 	"github.com/oursky/github-actions-manager/pkg/kv"
@@ -30,9 +29,10 @@ type Synchronizer struct {
 	metrics     *metrics
 	webhookRuns chan webhookObject[*github.WorkflowRun]
 	webhookJobs chan webhookObject[*github.WorkflowJob]
+	clock       Clock
 }
 
-func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv kv.Store, registry *prometheus.Registry) (*Synchronizer, error) {
+func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv kv.Store, registry *prometheus.Registry, clock Clock) (*Synchronizer, error) {
 	logger = logger.Named("jobs-sync")
 
 	server := newWebhookServer(logger, config.GetWebhookServerAddr(), config.WebhookSecret)
@@ -50,6 +50,7 @@ func NewSynchronizer(logger *zap.Logger, config *Config, client *http.Client, kv
 		metrics:     newMetrics(registry),
 		webhookRuns: runs,
 		webhookJobs: jobs,
+		clock:       clock,
 	}, nil
 }
 
@@ -90,13 +91,13 @@ func (s *Synchronizer) run(
 
 		case run := <-webhookRuns:
 			runs[run.Key] = cell[github.WorkflowRun]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    run.Object,
 			}
 
 		case job := <-webhookJobs:
 			jobs[job.Key] = cell[github.WorkflowJob]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    job.Object,
 			}
 
@@ -113,10 +114,10 @@ func (s *Synchronizer) run(
 			}
 
 			runs[runKey] = cell[github.WorkflowRun]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    run,
 			}
-		case <-time.After(syncInterval):
+		case <-s.clock.After(syncInterval):
 			if len(runs) == 0 {
 				continue
 			}
@@ -164,7 +165,7 @@ func (s *Synchronizer) run(
 			}
 		}
 
-		retentionLimit := time.Now().Add(-s.config.GetRetentionPeriod())
+		retentionLimit := s.clock.Now().Add(-s.config.GetRetentionPeriod())
 
 		runRefs := make(map[Key]int)
 		for key, job := range jobs {
@@ -225,7 +226,7 @@ func (s *Synchronizer) loadState(
 			continue
 		}
 		runs[Key{RepoOwner: owner, RepoName: repo, ID: id}] = cell[github.WorkflowRun]{
-			UpdatedAt: time.Now(),
+			UpdatedAt: s.clock.Now(),
 			Object:    wrun,
 		}
 
@@ -239,7 +240,7 @@ func (s *Synchronizer) loadState(
 		}
 		for _, job := range wjobs.Jobs {
 			jobs[Key{RepoOwner: owner, RepoName: repo, ID: job.GetID()}] = cell[github.WorkflowJob]{
-				UpdatedAt: time.Now(),
+				UpdatedAt: s.clock.Now(),
 				Object:    job,
 			}
 		}

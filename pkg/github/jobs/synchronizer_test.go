@@ -124,11 +124,11 @@ func TestRun(t *testing.T) {
 	defer cancel()
 
 	g, ctx := errgroup.WithContext(ctx)
-	s, _ := NewSynchronizer(logger, config, client, kv, registry)
+	s, _ := NewSynchronizer(logger, config, client, kv, registry, TestClock{})
 	s.Start(ctx, g)
 	s.webhookRuns <- testWebhookRun
 	s.webhookJobs <- testWebhookJob
-	time.Sleep(20 * time.Second)
+	time.Sleep(1 * time.Second)
 	assert.Equal(t, testWorkflowRun, s.metrics.state.WorkflowRuns[0])
 
 }
