@@ -24,25 +24,25 @@ type workState struct {
 	jobs map[Key]cell[github.WorkflowJob]
 }
 
-func (s workState) setRun(owner string, repo string, r *github.WorkflowRun) {
+func (s workState) setRun(owner string, repo string, r *github.WorkflowRun, force bool) {
 	key := Key{RepoOwner: owner, RepoName: repo, ID: r.GetID()}
 	cell := s.runs[key]
 	updatedAt := r.GetUpdatedAt().Time
-	if updatedAt.After(cell.UpdatedAt) {
+	if updatedAt.After(cell.UpdatedAt) || force {
 		cell.Object = r
 		cell.UpdatedAt = updatedAt
 		s.runs[key] = cell
 	}
 }
 
-func (s workState) setJob(owner string, repo string, j *github.WorkflowJob) {
+func (s workState) setJob(owner string, repo string, j *github.WorkflowJob, force bool) {
 	key := Key{RepoOwner: owner, RepoName: repo, ID: j.GetID()}
 	cell := s.jobs[key]
 	updatedAt := j.GetCompletedAt().Time
 	if updatedAt.IsZero() {
 		updatedAt = j.GetStartedAt().Time
 	}
-	if updatedAt.After(cell.UpdatedAt) {
+	if updatedAt.After(cell.UpdatedAt) || force {
 		cell.Object = j
 		cell.UpdatedAt = updatedAt
 		s.jobs[key] = cell
@@ -118,10 +118,10 @@ func (s *Synchronizer) run(
 			return
 
 		case o := <-webhookRuns:
-			st.setRun(o.RepoOwner, o.RepoName, o.Object)
+			st.setRun(o.RepoOwner, o.RepoName, o.Object, false)
 
 		case o := <-webhookJobs:
-			st.setJob(o.RepoOwner, o.RepoName, o.Object)
+			st.setJob(o.RepoOwner, o.RepoName, o.Object, false)
 
 			run, _, err := s.github.Actions.GetWorkflowRunByID(ctx, o.RepoOwner, o.RepoName, o.Object.GetRunID())
 			if err != nil {
@@ -134,48 +134,10 @@ func (s *Synchronizer) run(
 				break
 			}
 
-			st.setRun(o.RepoOwner, o.RepoName, run)
+			st.setRun(o.RepoOwner, o.RepoName, run, false)
 
 		case <-time.After(syncInterval):
-			if len(st.runs) == 0 {
-				continue
-			}
-			// 0: runs; 1: jobs
-			choosenType := rand.Intn(2)
-			switch choosenType {
-			case 0:
-				var choosenKey Key
-				for key := range st.runs {
-					choosenKey = key
-					break
-				}
-				updatedRun, _, err := s.github.Actions.GetWorkflowRunByID(ctx, choosenKey.RepoOwner, choosenKey.RepoName, choosenKey.ID)
-				if err != nil {
-					s.logger.Warn("failed to get workflow run",
-						zap.Error(err),
-						zap.String("owner", choosenKey.RepoOwner),
-						zap.String("repo", choosenKey.RepoName),
-						zap.Int64("id", choosenKey.ID),
-					)
-				}
-				st.setRun(choosenKey.RepoOwner, choosenKey.RepoName, updatedRun)
-			case 1:
-				var choosenKey Key
-				for key := range st.jobs {
-					choosenKey = key
-					break
-				}
-				updatedJob, _, err := s.github.Actions.GetWorkflowJobByID(ctx, choosenKey.RepoOwner, choosenKey.RepoName, choosenKey.ID)
-				if err != nil {
-					s.logger.Warn("failed to get workflow job",
-						zap.Error(err),
-						zap.String("owner", choosenKey.RepoOwner),
-						zap.String("repo", choosenKey.RepoName),
-						zap.Int64("id", choosenKey.ID),
-					)
-				}
-				st.setJob(choosenKey.RepoOwner, choosenKey.RepoName, updatedJob)
-			}
+			s.refreshState(ctx, st)
 		}
 
 		retentionLimit := time.Now().Add(-s.config.GetRetentionPeriod())
@@ -203,6 +165,54 @@ func (s *Synchronizer) run(
 		s.metrics.update(state)
 		s.saveState(ctx, st.runs)
 	}
+}
+
+func (s *Synchronizer) refreshState(ctx context.Context, st workState) {
+	var updaters []func()
+
+	for k, o := range st.runs {
+		if o.Object.GetStatus() == "completed" {
+			continue
+		}
+		key := k
+		updaters = append(updaters, func() {
+			run, _, err := s.github.Actions.GetWorkflowRunByID(ctx, key.RepoOwner, key.RepoName, key.ID)
+			if err != nil {
+				s.logger.Warn("failed to get workflow run",
+					zap.Error(err),
+					zap.String("owner", key.RepoOwner),
+					zap.String("repo", key.RepoName),
+					zap.Int64("id", key.ID),
+				)
+				return
+			}
+			st.setRun(key.RepoOwner, key.RepoName, run, true)
+		})
+	}
+
+	for k, o := range st.jobs {
+		if o.Object.GetStatus() == "completed" {
+			continue
+		}
+		key := k
+		updaters = append(updaters, func() {
+			job, _, err := s.github.Actions.GetWorkflowJobByID(ctx, key.RepoOwner, key.RepoName, key.ID)
+			if err != nil {
+				s.logger.Warn("failed to get workflow job",
+					zap.Error(err),
+					zap.String("owner", key.RepoOwner),
+					zap.String("repo", key.RepoName),
+					zap.Int64("id", key.ID),
+				)
+			}
+			st.setJob(key.RepoOwner, key.RepoName, job, true)
+		})
+	}
+
+	if len(updaters) == 0 {
+		return
+	}
+	updaters[rand.Intn(len(updaters))]()
 }
 
 func (s *Synchronizer) loadState(ctx context.Context, st workState) {
@@ -234,7 +244,7 @@ func (s *Synchronizer) loadState(ctx context.Context, st workState) {
 			s.logger.Warn("failed to refresh state", zap.Error(err), zap.String("key", k))
 			continue
 		}
-		st.setRun(owner, repo, wrun)
+		st.setRun(owner, repo, wrun, true)
 
 		wjobs, _, err := s.github.Actions.ListWorkflowJobs(
 			ctx, owner, repo, id,
@@ -245,7 +255,7 @@ func (s *Synchronizer) loadState(ctx context.Context, st workState) {
 			continue
 		}
 		for _, job := range wjobs.Jobs {
-			st.setJob(owner, repo, job)
+			st.setJob(owner, repo, job, true)
 		}
 	}
 
