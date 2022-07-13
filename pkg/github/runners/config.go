@@ -12,7 +12,7 @@ type Config struct {
 }
 
 func (c *Config) GetSyncInterval() time.Duration {
-	return defaults.Value(c.SyncInterval, 10*time.Second)
+	return defaults.Value(c.SyncInterval, 5*time.Second)
 }
 
 func (c *Config) GetSyncPageSize() int {

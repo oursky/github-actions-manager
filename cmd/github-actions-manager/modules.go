@@ -16,10 +16,10 @@ import (
 	"github.com/oursky/github-actions-manager/pkg/slack"
 	"github.com/oursky/github-actions-manager/pkg/utils/defaults"
 	"github.com/oursky/github-actions-manager/pkg/utils/ratelimit"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 
 	gh "github.com/google/go-github/v45/github"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
@@ -31,15 +31,18 @@ func initModules(logger *zap.Logger, config *Config) ([]cmd.Module, error) {
 
 	transport, err := auth.NewTransport(
 		&config.GitHub.Auth,
-		ratelimit.NewTransport(
-			http.DefaultTransport,
-			rate.Limit(defaults.Value(config.GitHub.RPS, 1)),
-			defaults.Value(config.GitHub.Brust, 60),
-		),
+		http.DefaultTransport,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot setup GitHub client: %w", err)
 	}
+	transport = github.NewCachedTransport(
+		ratelimit.NewTransport(
+			transport,
+			rate.Limit(defaults.Value(config.GitHub.RPS, 1)),
+			defaults.Value(config.GitHub.Brust, 60),
+		),
+	)
 
 	client := &http.Client{
 		Transport: transport,

@@ -3,7 +3,6 @@ module github.com/oursky/github-actions-manager
 go 1.18
 
 require (
-	github.com/BurntSushi/toml v1.1.0
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
 	github.com/go-playground/validator/v10 v10.11.0
@@ -61,6 +60,7 @@ require (
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/huandu/xstrings v1.3.1 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
