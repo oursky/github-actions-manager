@@ -8,5 +8,5 @@ build:
 .PHONY: push
 push:
 	oras push "${IMAGE_REPO}:git-$$(git rev-parse --short=10 HEAD)" \
-		--manifest-config /dev/null:text/plain \
+		--config /dev/null:text/plain \
 		./kube-agent
