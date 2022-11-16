@@ -120,6 +120,9 @@ func (m *executer) configure(ctx context.Context, resp *controller.AgentResponse
 		if len(resp.Labels) > 0 {
 			args = append(args, "--labels", strings.Join(resp.Labels, ","))
 		}
+		if resp.DisableUpdate != nil && *resp.DisableUpdate {
+			args = append(args, "--disableupdate")
+		}
 		cmd := exec.CommandContext(ctx, m.config.GetConfigureScript(), args...)
 		m.setupRunnerCmd(cmd)
 

@@ -10,8 +10,14 @@ type Config struct {
 	ManagerURL        string  `validate:"required,url"`
 	ManagerAuthKey    string  `validate:"required"`
 	Addr              *string `validate:"omitempty,tcp_addr"`
+	DisableUpdate     *bool
 	SyncInterval      *time.Duration
 	TransitionTimeout *time.Duration
+}
+
+// FIXME: configure it at manager instead of controller
+func (c *Config) GetDisableUpdate() bool {
+	return defaults.Value(c.DisableUpdate, false)
 }
 
 func (c *Config) GetSyncInterval() time.Duration {

@@ -124,6 +124,7 @@ func (p *ControllerProvider) RegisterAgent(
 	hostName string,
 	regToken string,
 	targetURL string,
+	disableUpdate bool,
 ) (*controller.AgentResponse, error) {
 	pod := r.Context().Value(authzContextKey).(*corev1.Pod)
 	annotations := pod.Annotations
@@ -146,11 +147,12 @@ func (p *ControllerProvider) RegisterAgent(
 	p.updateAgentPod(p.ctx, pod, agent.RunnerName, false)
 
 	return &controller.AgentResponse{
-		Agent:     *agent,
-		TargetURL: targetURL,
-		Token:     regToken,
-		Group:     group,
-		Labels:    labels,
+		Agent:         *agent,
+		TargetURL:     targetURL,
+		Token:         regToken,
+		Group:         group,
+		Labels:        labels,
+		DisableUpdate: &disableUpdate,
 	}, nil
 }
 

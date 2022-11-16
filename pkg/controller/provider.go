@@ -16,7 +16,7 @@ type Provider interface {
 	Shutdown()
 	Capabilities() Capabilities
 	AuthenticateRequest(rw http.ResponseWriter, r *http.Request, next http.Handler)
-	RegisterAgent(r *http.Request, hostName string, regToken string, targetURL string) (*AgentResponse, error)
+	RegisterAgent(r *http.Request, hostName string, regToken string, targetURL string, disableUpdate bool) (*AgentResponse, error)
 	CheckAgent(ctx context.Context, agent *Agent, runner *runners.Instance) error
 	TerminateAgent(ctx context.Context, agent Agent) error
 }

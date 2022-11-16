@@ -15,10 +15,11 @@ import (
 )
 
 type server struct {
-	logger     *zap.Logger
-	server     *http.Server
-	managerAPI *managerAPI
-	provider   Provider
+	logger        *zap.Logger
+	server        *http.Server
+	managerAPI    *managerAPI
+	provider      Provider
+	disableUpdate bool
 }
 
 func newServer(logger *zap.Logger, config *Config, managerAPI *managerAPI, gatherer prometheus.Gatherer, provider Provider) *server {
@@ -34,8 +35,9 @@ func newServer(logger *zap.Logger, config *Config, managerAPI *managerAPI, gathe
 			Handler:      r,
 			ErrorLog:     zap.NewStdLog(logger),
 		},
-		managerAPI: managerAPI,
-		provider:   provider,
+		managerAPI:    managerAPI,
+		provider:      provider,
+		disableUpdate: config.GetDisableUpdate(),
 	}
 
 	r.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{

@@ -11,11 +11,12 @@ import (
 )
 
 type AgentResponse struct {
-	Agent     Agent    `json:"agent"`
-	TargetURL string   `json:"targetURL"`
-	Token     string   `json:"token"`
-	Group     string   `json:"group"`
-	Labels    []string `json:"labels"`
+	Agent         Agent    `json:"agent"`
+	TargetURL     string   `json:"targetURL"`
+	Token         string   `json:"token"`
+	Group         string   `json:"group"`
+	Labels        []string `json:"labels"`
+	DisableUpdate *bool    `json:"disableUpdate"`
 }
 
 func (s *server) apiAgentGet(rw http.ResponseWriter, r *http.Request) {
@@ -77,7 +78,7 @@ func (s *server) apiAgentPost(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.provider.RegisterAgent(r, hostName, regToken, targetURL)
+	resp, err := s.provider.RegisterAgent(r, hostName, regToken, targetURL, s.disableUpdate)
 	if err != nil {
 		s.logger.Error("cannot register agent", zap.Error(err), zap.String("hostName", hostName))
 		http.Error(rw, "cannot register agent", http.StatusInternalServerError)
