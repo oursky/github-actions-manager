@@ -84,6 +84,7 @@ func (a *App) AddChannel(ctx context.Context, repo string, channelInfo ChannelIn
 		return err
 	}
 
+	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	supportedConclusions := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
 	unsupportedConclusions := []string{}
 	for _, c := range channelInfo.conclusions {
