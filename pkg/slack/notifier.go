@@ -157,12 +157,12 @@ func (n *Notifier) notify(ctx context.Context, run *jobs.WorkflowRun) {
 		}},
 	}
 
-	for _, channelID := range channels {
-		err := n.app.SendMessage(ctx, channelID, slack.MsgOptionAttachments(slackMsg))
+	for _, channel := range channels {
+		err := n.app.SendMessage(ctx, channel.channelID, slack.MsgOptionAttachments(slackMsg))
 		if err != nil {
 			n.logger.Warn("failed to send message",
 				zap.Error(err),
-				zap.String("channelID", channelID),
+				zap.String("channelID", channel.channelID),
 			)
 		}
 	}
