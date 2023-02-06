@@ -1,0 +1,26 @@
+[github]
+targetURL = "https://github.com/oursky/github-ci"
+
+[github.auth]
+type="Token"
+token="ghp_......"
+
+[github.runners]
+syncInterval="60s"
+
+[github.jobs]
+disabled=true
+
+[dashboard]
+addr="0.0.0.0:8000"
+
+[store]
+type="InMemory"
+
+[slack]
+disabled=false
+botToken="xoxb-......"
+appToken="xapp-......"
+
+[api]
+authKeys=["......"]
