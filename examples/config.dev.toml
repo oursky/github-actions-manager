@@ -1,5 +1,5 @@
 [github]
-targetURL = "https://github.com/oursky/github-ci"
+targetURL = "https://github.com/oursky/github-actions-manager"
 
 [github.auth]
 type="Token"
@@ -9,7 +9,9 @@ token="ghp_......"
 syncInterval="60s"
 
 [github.jobs]
-disabled=true
+disabled=false
+webhookServerAddr="0.0.0.0:8080"
+webhookSecret="secret"
 
 [dashboard]
 addr="0.0.0.0:8000"
