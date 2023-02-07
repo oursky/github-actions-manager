@@ -159,14 +159,15 @@ func (n *Notifier) notify(ctx context.Context, run *jobs.WorkflowRun) {
 	}
 
 	for _, channel := range channels {
-		if len(channel.conclusions) == 0 || slices.Contains(channel.conclusions, run.Conclusion) {
-			err := n.app.SendMessage(ctx, channel.channelID, slack.MsgOptionAttachments(slackMsg))
-			if err != nil {
-				n.logger.Warn("failed to send message",
-					zap.Error(err),
-					zap.String("channelID", channel.channelID),
-				)
-			}
+		if len(channel.conclusions) > 0 && !slices.Contains(channel.conclusions, run.Conclusion) {
+			return
+		}
+		err := n.app.SendMessage(ctx, channel.channelID, slack.MsgOptionAttachments(slackMsg))
+		if err != nil {
+			n.logger.Warn("failed to send message",
+				zap.Error(err),
+				zap.String("channelID", channel.channelID),
+			)
 		}
 	}
 }

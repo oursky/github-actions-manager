@@ -69,9 +69,15 @@ func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, erro
 
 	for _, channelString := range channelInfoStrings {
 		channelID, conclusionsString, _ := strings.Cut(channelString, ":")
+		consclusions := []string{}
+		for _, conclusion := range strings.Split(conclusionsString, ",") {
+			if len(conclusion) > 0 {
+				consclusions = append(consclusions, conclusion)
+			}
+		}
 		channelInfos = append(channelInfos, ChannelInfo{
 			channelID:   channelID,
-			conclusions: strings.Split(conclusionsString, ","),
+			conclusions: consclusions,
 		})
 	}
 
