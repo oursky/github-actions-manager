@@ -65,19 +65,19 @@ func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, erro
 		return nil, nil
 	}
 	channelInfoStrings := strings.Split(data, ";")
-	channelInfos := []ChannelInfo{}
+	var channelInfos []ChannelInfo
 
 	for _, channelString := range channelInfoStrings {
 		channelID, conclusionsString, _ := strings.Cut(channelString, ":")
-		consclusions := []string{}
+		var conclusions []string
 		for _, conclusion := range strings.Split(conclusionsString, ",") {
 			if len(conclusion) > 0 {
-				consclusions = append(consclusions, conclusion)
+				conclusions = append(conclusions, conclusion)
 			}
 		}
 		channelInfos = append(channelInfos, ChannelInfo{
 			channelID:   channelID,
-			conclusions: consclusions,
+			conclusions: conclusions,
 		})
 	}
 
@@ -92,7 +92,7 @@ func (a *App) AddChannel(ctx context.Context, repo string, channelInfo ChannelIn
 
 	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	supportedConclusions := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
-	unsupportedConclusions := []string{}
+	var unsupportedConclusions []string
 	for _, c := range channelInfo.conclusions {
 		if !slices.Contains(supportedConclusions, c) {
 			unsupportedConclusions = append(unsupportedConclusions, c)
@@ -103,10 +103,11 @@ func (a *App) AddChannel(ctx context.Context, repo string, channelInfo ChannelIn
 		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
 	}
 
-	newChannelInfoStrings := []string{}
+	var newChannelInfoStrings []string
 	for _, c := range channelInfos {
 		if c.channelID == channelInfo.channelID {
-			return fmt.Errorf("already subscribed to repo")
+			// Skip the old subscription and will replace with the new conclusion filter options
+			continue
 		}
 		newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(c))
 	}
@@ -122,7 +123,7 @@ func (a *App) DelChannel(ctx context.Context, repo string, channelID string) err
 		return err
 	}
 
-	newChannelInfoStrings := []string{}
+	var newChannelInfoStrings []string
 	found := false
 	for _, c := range channelInfos {
 		if c.channelID == channelID {
