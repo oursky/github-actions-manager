@@ -8,10 +8,12 @@ import (
 	"strings"
 
 	"github.com/oursky/github-actions-manager/pkg/kv"
+	"github.com/oursky/github-actions-manager/pkg/utils/array"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"k8s.io/utils/strings/slices"
 )
 
 var repoRegex = regexp.MustCompile("[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?")
@@ -21,6 +23,11 @@ type App struct {
 	disabled bool
 	api      *slack.Client
 	store    kv.Store
+}
+
+type ChannelInfo struct {
+	channelID   string
+	conclusions []string
 }
 
 func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
@@ -41,52 +48,94 @@ func (a *App) Disabled() bool {
 	return a.disabled
 }
 
-func (a *App) GetChannels(ctx context.Context, repo string) ([]string, error) {
+// Format of channel info string: "<channel_Id>:<conclusion_1>,<conclusion_2>"
+func toChannelInfoString(channelInfo ChannelInfo) string {
+	if len(channelInfo.conclusions) == 0 {
+		return channelInfo.channelID
+	}
+	conclusionsString := strings.Join(channelInfo.conclusions, ",")
+	return channelInfo.channelID + ":" + conclusionsString
+}
+
+func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, error) {
 	data, err := a.store.Get(ctx, kvNamespace, repo)
 	if err != nil {
 		return nil, err
 	} else if data == "" {
 		return nil, nil
 	}
-	return strings.Split(data, ";"), nil
+	channelInfoStrings := strings.Split(data, ";")
+	var channelInfos []ChannelInfo
+
+	for _, channelString := range channelInfoStrings {
+		channelID, conclusionsString, _ := strings.Cut(channelString, ":")
+		var conclusions []string
+		for _, conclusion := range strings.Split(conclusionsString, ",") {
+			if len(conclusion) > 0 {
+				conclusions = append(conclusions, conclusion)
+			}
+		}
+		channelInfos = append(channelInfos, ChannelInfo{
+			channelID:   channelID,
+			conclusions: conclusions,
+		})
+	}
+
+	return channelInfos, nil
 }
 
-func (a *App) AddChannel(ctx context.Context, repo string, channelID string) error {
-	channelIDs, err := a.GetChannels(ctx, repo)
+func (a *App) AddChannel(ctx context.Context, repo string, channelInfo ChannelInfo) error {
+	channelInfos, err := a.GetChannels(ctx, repo)
 	if err != nil {
 		return err
 	}
 
-	for _, c := range channelIDs {
-		if c == channelID {
-			return fmt.Errorf("already subscribed to repo")
+	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
+	supportedConclusions := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
+	var unsupportedConclusions []string
+	for _, c := range channelInfo.conclusions {
+		if !slices.Contains(supportedConclusions, c) {
+			unsupportedConclusions = append(unsupportedConclusions, c)
 		}
 	}
-	channelIDs = append(channelIDs, channelID)
-	data := strings.Join(channelIDs, ";")
+
+	if len(unsupportedConclusions) > 0 {
+		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
+	}
+
+	var newChannelInfoStrings []string
+	for _, c := range channelInfos {
+		if c.channelID == channelInfo.channelID {
+			// Skip the old subscription and will replace with the new conclusion filter options
+			continue
+		}
+		newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(c))
+	}
+	newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(channelInfo))
+	data := strings.Join(newChannelInfoStrings, ";")
 
 	return a.store.Set(ctx, kvNamespace, repo, data)
 }
 
 func (a *App) DelChannel(ctx context.Context, repo string, channelID string) error {
-	channelIDs, err := a.GetChannels(ctx, repo)
+	channelInfos, err := a.GetChannels(ctx, repo)
 	if err != nil {
 		return err
 	}
 
-	newChannelIDs := []string{}
+	var newChannelInfoStrings []string
 	found := false
-	for _, c := range channelIDs {
-		if c == channelID {
+	for _, c := range channelInfos {
+		if c.channelID == channelID {
 			found = true
 			continue
 		}
-		newChannelIDs = append(newChannelIDs, c)
+		newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(c))
 	}
 	if !found {
 		return fmt.Errorf("not subscribed to repo")
 	}
-	data := strings.Join(newChannelIDs, ";")
+	data := strings.Join(newChannelInfoStrings, ";")
 
 	return a.store.Set(ctx, kvNamespace, repo, data)
 }
@@ -151,7 +200,16 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 					return
 				}
 
-				subcommand, repo, _ := strings.Cut(data.Text, " ")
+				args := strings.Split(data.Text, " ")
+				if len(args) < 2 {
+					client.Ack(*e.Request, map[string]interface{}{
+						"text": fmt.Sprintf("Please specify subcommand and repo")})
+					return
+				}
+
+				repo := args[1]
+				subcommand := args[0]
+				conclusions := array.Unique(args[2:])
 				if !repoRegex.MatchString(repo) {
 					client.Ack(*e.Request, map[string]interface{}{
 						"text": fmt.Sprintf("Invalid repo '%s'\n", repo),
@@ -161,17 +219,28 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 
 				switch subcommand {
 				case "subscribe":
-					err := a.AddChannel(ctx, repo, data.ChannelID)
+					channelInfo := ChannelInfo{
+						channelID:   data.ChannelID,
+						conclusions: conclusions,
+					}
+					err := a.AddChannel(ctx, repo, channelInfo)
 					if err != nil {
 						a.logger.Warn("failed to subscribe", zap.Error(err))
 						client.Ack(*e.Request, map[string]interface{}{
 							"text": fmt.Sprintf("Failed to subscribe '%s': %s\n", repo, err),
 						})
 					} else {
-						client.Ack(*e.Request, map[string]interface{}{
-							"response_type": "in_channel",
-							"text":          fmt.Sprintf("Subscribed to '%s'\n", repo),
-						})
+						if len(conclusions) > 0 {
+							client.Ack(*e.Request, map[string]interface{}{
+								"response_type": "in_channel",
+								"text":          fmt.Sprintf("Subscribed to '%s' with conclusions: %s\n", repo, strings.Join(conclusions, ", ")),
+							})
+						} else {
+							client.Ack(*e.Request, map[string]interface{}{
+								"response_type": "in_channel",
+								"text":          fmt.Sprintf("Subscribed to '%s'\n", repo),
+							})
+						}
 					}
 
 				case "unsubscribe":
