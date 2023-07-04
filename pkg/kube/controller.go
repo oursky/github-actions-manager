@@ -131,6 +131,18 @@ func (p *ControllerProvider) RegisterAgent(
 	group := annotations[annotationRunnerGroup]
 	labels := strings.Split(annotations[annotationRunnerLabels], ",")
 
+	if pod.Spec.NodeName != "" {
+		node, err := p.kube.CoreV1().Nodes().Get(r.Context(), pod.Spec.NodeName, metav1.GetOptions{})
+		if err != nil {
+			p.logger.Error("failed to get node",
+				zap.String("nodeName", pod.Spec.NodeName),
+				zap.Error(err))
+		} else {
+			nodeRunnerLabels := strings.Split(node.Annotations[annotationRunnerLabels], ",")
+			labels = append(labels, nodeRunnerLabels...)
+		}
+	}
+
 	agent, err := p.state.makeAgent(pod, hostName)
 	if err != nil {
 		return nil, err
