@@ -19,10 +19,11 @@ import (
 var repoRegex = regexp.MustCompile("[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?")
 
 type App struct {
-	logger   *zap.Logger
-	disabled bool
-	api      *slack.Client
-	store    kv.Store
+	logger      *zap.Logger
+	disabled    bool
+	api         *slack.Client
+	store       kv.Store
+	commandName string
 }
 
 type ChannelInfo struct {
@@ -40,7 +41,8 @@ func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
 			slack.OptionLog(zap.NewStdLog(logger)),
 			slack.OptionAppLevelToken(config.AppToken),
 		),
-		store: store,
+		store:       store,
+		commandName: config.GetCommandName(),
 	}
 }
 
@@ -194,7 +196,7 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 					zap.String("text", data.Text),
 				)
 
-				if data.Command != "/gha" {
+				if data.Command != "/"+a.commandName {
 					client.Ack(*e.Request, map[string]interface{}{
 						"text": fmt.Sprintf("Unknown command '%s'\n", data.Command)})
 					return
