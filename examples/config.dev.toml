@@ -23,6 +23,7 @@ type="InMemory"
 disabled=false
 botToken="xoxb-......"
 appToken="xapp-......"
+commandName="gha"
 
 [api]
 authKeys=["......"]
