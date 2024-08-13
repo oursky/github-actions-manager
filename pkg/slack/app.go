@@ -199,14 +199,14 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 				if data.Command != "/"+a.commandName {
 					client.Ack(*e.Request, map[string]interface{}{
 						"text": fmt.Sprintf("Unknown command '%s'\n", data.Command)})
-					return
+					continue
 				}
 
 				args := strings.Split(data.Text, " ")
 				if len(args) < 2 {
 					client.Ack(*e.Request, map[string]interface{}{
 						"text": fmt.Sprintf("Please specify subcommand and repo")})
-					return
+					continue
 				}
 
 				repo := args[1]
@@ -216,7 +216,7 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 					client.Ack(*e.Request, map[string]interface{}{
 						"text": fmt.Sprintf("Invalid repo '%s'\n", repo),
 					})
-					return
+					continue
 				}
 
 				switch subcommand {
