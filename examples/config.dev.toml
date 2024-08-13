@@ -17,7 +17,8 @@ webhookSecret="secret"
 addr="0.0.0.0:8000"
 
 [store]
-type="InMemory"
+type="FS"
+FSPath="fs"
 
 [slack]
 disabled=false

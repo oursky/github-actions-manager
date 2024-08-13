@@ -47,4 +47,11 @@ go run ./cmd/github-actions-manager -config config.toml -loglevel DEBUG
 
 7. Under Github tokens page https://github.com/settings/tokens, generate a Github personal access token (classic) with scope `[workflow, notifications]` (this may be more than strictly necessary). Copy the generated `token` to `token` in `config.toml`.
 
+### FSPath
+
+Currently, persistent configs are being stored in a low-density file storage system under `fs`. 
+If you want to disable config persistence i.e. reconstruct the list of subscribed repos after every restart:
+
+Under `config.toml` -> `[store]`,  change `type` to `"InMemory"`. 
+
 8. Test the app **in a public channel** (e.g. #team-bot-sandbox). The app was not designed with direct messages in mind and may not work there.
