@@ -1,5 +1,8 @@
 # Github Actions Manager
 
+This app has three components: the GitHub Action repo, the intermediate server, and the Slack interface.
+It is recommended to create your own repo to test the app, using the 2,000 free hours they give you.
+
 ### Running local development server
 
 On root directory:
@@ -8,7 +11,7 @@ On root directory:
 cp examples/config.dev.toml config.toml 
 ```
 
-Replace values of `token`, `botToken` and `appToken` in `config.toml`. Then:
+Follow the directons below to generate values of `token`, `botToken` and `appToken` for `config.toml`. Then:
 
 ```golang
 go run ./cmd/github-actions-manager -config config.toml -loglevel DEBUG
@@ -32,14 +35,16 @@ go run ./cmd/github-actions-manager -config config.toml -loglevel DEBUG
 
 1. On Slack Portal https://api.slack.com/apps, press `Create New App` and select `From scratch`
 
-2. Enable `Slash Commands` and `Bots` on `Add features and functionality`.
+2. Under `Basic Information` -> `App-Level Tokens`, add an access token with scope `[connections:write]`. Copy the generated `Token` to `appToken` in `config.toml`.
 
-3. Enable Socket Mode on `Socket Mode`.
+3. Under `Socket Mode`, enable Socket Mode.
 
-4. Add `/gha` to `Slash Commands`.
+4. Under `Add features and functionality` -> `Slash Commands` -> `Create New Command`, add a command. (It is advidable to pick a command prefix that does not overlap with existing bot commands.) In `config.toml`, change `commandName` to your chosen prefix. 
 
-5. Add an access token on `App-Level Tokens`, copy the value to `appToken` in `config.toml`.
+5. Under `OAuth & Permissions` -> `Scopes`, select `commands` and `chat:write.public` (which will autoselect `chat:write`).
 
-6. Install the app to workspace on `OAuth & Permissions` and copy `Bot User OAuth Token` to `botToken` in `config.toml`. Also make sure to add scope `chat:write` to `Bot Token Scopes` .
+6. Under `OAuth & Permissions` -> `OAuth Tokens`, install the app to the workspace. Copy the generated `Bot User OAuth Token` to `botToken` in `config.toml`.
 
-7. Integrate app on the channel
+7. Under Github tokens page https://github.com/settings/tokens, generate a Github personal access token (classic) with scope `[workflow, notifications]` (this may be more than strictly necessary). Copy the generated `token` to `token` in `config.toml`.
+
+8. Test the app **in a public channel** (e.g. #team-bot-sandbox). The app was not designed with direct messages in mind and may not work there.
