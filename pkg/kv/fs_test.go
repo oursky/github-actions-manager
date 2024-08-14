@@ -4,47 +4,47 @@ import (
 	"context"
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"go.uber.org/zap"
 )
 
-func TestSetGet(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func TestSpec(t *testing.T) {
+	Convey("Given a fresh context", t, func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		test_path := t.TempDir()
+		logger := zap.NewExample()
+		store := NewFSStore(logger, test_path)
+		ns := Namespace("namespace1")
 
-	logger := zap.NewExample()
-	store := NewFSStore(logger, "testfs")
-	ns := Namespace("namespace1")
-	key := "key1"
-	value := "value1"
-
-	err := store.Set(ctx, ns, key, value)
-	if err != nil {
-		t.Fatalf("Error in set: %s", err)
-	}
-
-	returned, err := store.Get(ctx, ns, key)
-	if err != nil {
-		t.Fatalf("Error in get: %s", err)
-	}
-	if value != returned {
-		t.Fatalf("Got something wrong: %s instead of %s", returned, value)
-	}
-}
-
-func TestGetNone(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	logger := zap.NewExample()
-	store := NewFSStore(logger, "testfs")
-	ns := Namespace("namespace1")
-	key := "key2"
-
-	returned, err := store.Get(ctx, ns, key)
-	if err != nil {
-		t.Fatalf("Store is not robust, err thrown by reading unstored value: %s", err)
-	}
-	if returned != "" {
-		t.Fatalf("Got unstored value: %s", returned)
-	}
+		Convey("Values can be set", func() {
+			key := "key1"
+			value := "value1"
+			err := store.Set(ctx, ns, key, value)
+			So(err, ShouldEqual, nil)
+		})
+		Convey("When reading a set value", func() {
+			key := "key2"
+			value := "value1"
+			store.Set(ctx, ns, key, value)
+			returned, err := store.Get(ctx, ns, key)
+			Convey("The application does not error", func() {
+				So(err, ShouldEqual, nil)
+			})
+			Convey("The value read is equal to the value set", func() {
+				So(returned, ShouldEqual, value)
+			})
+		})
+		Convey("When reading a value that was not set", func() {
+			key := "key3"
+			returned, err := store.Get(ctx, ns, key)
+			Convey("The application does not error", func() {
+				So(err, ShouldEqual, nil)
+			})
+			Convey("The value is empty", func() {
+				So(returned, ShouldEqual, "")
+			})
+		})
+	})
 }
