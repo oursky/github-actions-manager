@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/oursky/github-actions-manager/pkg/kv"
-	"github.com/oursky/github-actions-manager/pkg/utils/array"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 	"go.uber.org/zap"
@@ -24,6 +23,7 @@ type App struct {
 	api         *slack.Client
 	store       kv.Store
 	commandName string
+	cli         *CLI
 }
 
 type ChannelInfo struct {
@@ -43,6 +43,7 @@ func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
 		),
 		store:       store,
 		commandName: config.GetCommandName(),
+		cli:         DefaultCLI(),
 	}
 }
 
@@ -203,67 +204,30 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 				}
 
 				args := strings.Split(data.Text, " ")
-				if len(args) < 2 {
+				if len(args) < 1 {
 					client.Ack(*e.Request, map[string]interface{}{
-						"text": fmt.Sprintf("Please specify subcommand and repo")})
+						"text": fmt.Sprintf("Please specify subcommand")})
 					continue
 				}
 
-				repo := args[1]
+				cliContext := CLIContext{
+					app:    a,
+					ctx:    ctx,
+					data:   data,
+					logger: a.logger,
+				}
 				subcommand := args[0]
-				conclusions := array.Unique(args[2:])
-				if !repoRegex.MatchString(repo) {
+
+				result := a.cli.Execute(cliContext, subcommand, args[1:])
+				if result.printToChannel {
 					client.Ack(*e.Request, map[string]interface{}{
-						"text": fmt.Sprintf("Invalid repo '%s'\n", repo),
-					})
-					continue
-				}
-
-				switch subcommand {
-				case "subscribe":
-					channelInfo := ChannelInfo{
-						channelID:   data.ChannelID,
-						conclusions: conclusions,
-					}
-					err := a.AddChannel(ctx, repo, channelInfo)
-					if err != nil {
-						a.logger.Warn("failed to subscribe", zap.Error(err))
-						client.Ack(*e.Request, map[string]interface{}{
-							"text": fmt.Sprintf("Failed to subscribe '%s': %s\n", repo, err),
-						})
-					} else {
-						if len(conclusions) > 0 {
-							client.Ack(*e.Request, map[string]interface{}{
-								"response_type": "in_channel",
-								"text":          fmt.Sprintf("Subscribed to '%s' with conclusions: %s\n", repo, strings.Join(conclusions, ", ")),
-							})
-						} else {
-							client.Ack(*e.Request, map[string]interface{}{
-								"response_type": "in_channel",
-								"text":          fmt.Sprintf("Subscribed to '%s'\n", repo),
-							})
-						}
-					}
-
-				case "unsubscribe":
-					err := a.DelChannel(ctx, repo, data.ChannelID)
-					if err != nil {
-						a.logger.Warn("failed to unsubscribe", zap.Error(err))
-						client.Ack(*e.Request, map[string]interface{}{
-							"text": fmt.Sprintf("Failed to unsubscribe '%s': %s\n", repo, err),
-						})
-					} else {
-						client.Ack(*e.Request, map[string]interface{}{
-							"response_type": "in_channel",
-							"text":          fmt.Sprintf("Unsubscribed from '%s'\n", repo),
-						})
-					}
-
-				default:
-					client.Ack(*e.Request, map[string]interface{}{
-						"text": fmt.Sprintf("Unknown subcommand '%s'\n", subcommand),
+						"response_type": "in_channel",
+						"text":          result.message,
 					})
 				}
+				client.Ack(*e.Request, map[string]interface{}{
+					"text": result.message,
+				})
 
 			default:
 				if e.Type == socketmode.EventTypeHello {
