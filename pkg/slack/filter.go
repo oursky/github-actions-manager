@@ -11,8 +11,8 @@ import (
 
 type messageFilterLayer struct {
 	Conclusions []string `json:"conclusions"`
-	// branches    []string
-	Workflows []string `json:"workflows"`
+	Branches    []string `json:"branches"`
+	Workflows   []string `json:"workflows"`
 }
 
 type MessageFilter struct {
@@ -71,9 +71,6 @@ func (mfl *messageFilterLayer) setConclusions(conclusions []string) error {
 	}
 
 	if len(unsupportedConclusions) > 0 {
-		if slices.Contains(unsupportedConclusions, " ") {
-			return fmt.Errorf("do not space-separate conclusions. Use format conclusion1,conclusion2")
-		}
 		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
 	}
 
@@ -85,21 +82,54 @@ func NewFilter(filterLayers []string) (*MessageFilter, error) {
 	filter := MessageFilter{
 		filters: []messageFilterLayer{},
 	}
+
 	for _, layer := range filterLayers {
+		used := struct{ keys []string }{keys: []string{}}
 		definition := strings.Split(layer, ":")
 
 		switch len(definition) {
 		case 1: // Assumed format "conclusion1,conclusion2,..."
 			mfl := messageFilterLayer{}
+			if slices.Contains(used.keys, "none") {
+				return nil, fmt.Errorf("do not space-separate conclusions")
+			}
 			conclusions := strings.Split(definition[0], ",")
+
 			err := mfl.setConclusions(conclusions)
 			if err != nil {
 				return nil, nil
 			}
-			filter.filters = append(filter.filters, mfl)
-		case 2: // Assumed format "filterKey:filterValue1,filterValue2,..."
-		case 3: // Assumed format "filterKey:filterValue1,filterValue2,...:conclusion1,conclusion2,..."
 
+			used.keys = append(used.keys, "none")
+			filter.filters = append(filter.filters, mfl)
+		case 2, 3: // Assumed format "filterKey:filterValue1,filterValue2,..."
+			mfl := messageFilterLayer{}
+			filterType := definition[0]
+			if slices.Contains(used.keys, filterType) {
+				return nil, fmt.Errorf("duplicated filter type: %s", filterType)
+			}
+			switch filterType {
+			case "branches":
+				branches := strings.Split(definition[1], ",")
+				mfl.Branches = branches
+			case "workflows":
+				workflows := strings.Split(definition[1], ",")
+				mfl.Workflows = workflows
+			default:
+				return nil, fmt.Errorf("unsupported filter type: %s", filterType)
+			}
+
+			if len(definition) == 3 {
+				conclusions := strings.Split(definition[2], ",")
+
+				err := mfl.setConclusions(conclusions)
+				if err != nil {
+					return nil, nil
+				}
+			}
+
+			used.keys = append(used.keys, filterType)
+			filter.filters = append(filter.filters, mfl)
 		}
 	}
 
