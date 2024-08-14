@@ -3,7 +3,6 @@ package slack
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/oursky/github-actions-manager/pkg/utils/array"
 	"github.com/slack-go/slack"
@@ -153,7 +152,7 @@ func DefaultCLI() *CLI {
 
 				repo := args[0]
 				if !repoRegex.MatchString(repo) {
-					return NewCLIResult(false, fmt.Sprintf("Invalid repo '%s'\n", repo))
+					return NewCLIResult(false, fmt.Sprintf("Invalid repo *%s*\n", repo))
 				}
 
 				channels, err := env.app.GetChannels(env.ctx, repo)
@@ -161,7 +160,7 @@ func DefaultCLI() *CLI {
 					env.logger.Warn("failed to list channels", zap.Error(err))
 					return NewCLIResult(false, fmt.Sprintf("Failed to get list of subscribed repos: '%s'", err))
 				} else {
-					return NewCLIResult(true, fmt.Sprintf("'%s' is sending updates to: %s\n", repo, channels))
+					return NewCLIResult(true, fmt.Sprintf("*%s* is sending updates to: %s\n", repo, channels))
 				}
 			},
 		},
@@ -179,23 +178,30 @@ func DefaultCLI() *CLI {
 
 				repo := args[0]
 				if !repoRegex.MatchString(repo) {
-					return NewCLIResult(false, fmt.Sprintf("Invalid repo '%s'\n", repo))
+					return NewCLIResult(false, fmt.Sprintf("Invalid repo *%s*\n", repo))
 				}
 
-				conclusions := array.Unique(args[1:])
-				channelInfo := ChannelInfo{
-					channelID:   env.data.ChannelID,
-					conclusions: conclusions,
-				}
-				err := env.app.AddChannel(env.ctx, repo, channelInfo)
+				filterLayers := array.Unique(args[1:])
+				filter, err := NewFilter(filterLayers)
 				if err != nil {
 					env.logger.Warn("failed to subscribe", zap.Error(err))
-					return NewCLIResult(false, fmt.Sprintf("Failed to subscribe '%s': %s\n", repo, err))
+					return NewCLIResult(false, fmt.Sprintf("Failed to subscribe to *%s*: '%s'\n", repo, err))
 				}
-				if len(conclusions) > 0 {
-					return NewCLIResult(true, fmt.Sprintf("Subscribed to '%s' with conclusions: %s\n", repo, strings.Join(conclusions, ", ")))
+
+				channelInfo := ChannelInfo{
+					channelID: env.data.ChannelID,
+					filter:    &filter,
+				}
+				err = env.app.AddChannel(env.ctx, repo, channelInfo)
+				if err != nil {
+					env.logger.Warn("failed to subscribe", zap.Error(err))
+					return NewCLIResult(false, fmt.Sprintf("Failed to subscribe to *%s*: '%s'\n", repo, err))
+				}
+				if len(filterLayers) > 0 {
+					return NewCLIResult(true, fmt.Sprintf("Subscribe success REPLACE THIS STRING"))
+					// return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s* with filter layers: %s\n", repo, strings.Join(filterLayers, ", ")))
 				} else {
-					return NewCLIResult(true, fmt.Sprintf("Subscribed to '%s'\n", repo))
+					return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s*\n", repo))
 				}
 			},
 		},
@@ -212,15 +218,15 @@ func DefaultCLI() *CLI {
 
 				repo := args[0]
 				if !repoRegex.MatchString(repo) {
-					return NewCLIResult(false, fmt.Sprintf("Invalid repo '%s'\n", repo))
+					return NewCLIResult(false, fmt.Sprintf("Invalid repo *%s*\n", repo))
 				}
 
 				err := env.app.DelChannel(env.ctx, repo, env.data.ChannelID)
 				if err != nil {
 					env.logger.Warn("failed to unsubscribe", zap.Error(err))
-					return NewCLIResult(false, fmt.Sprintf("Failed to unsubscribe '%s': %s\n", repo, err))
+					return NewCLIResult(false, fmt.Sprintf("Failed to unsubscribe from *%s*: '%s'\n", repo, err))
 				} else {
-					return NewCLIResult(true, fmt.Sprintf("Unsubscribed from '%s'\n", repo))
+					return NewCLIResult(true, fmt.Sprintf("Unsubscribed from *%s*\n", repo))
 				}
 			},
 		},
