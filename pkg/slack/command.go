@@ -161,7 +161,7 @@ func DefaultCLI() *CLI {
 					env.logger.Warn("failed to list channels", zap.Error(err))
 					return NewCLIResult(false, fmt.Sprintf("Failed to get list of subscribed repos: '%s'", err))
 				} else {
-					return NewCLIResult(true, fmt.Sprintf("The channels '%s' are receiving updates from %s\n", channels, repo))
+					return NewCLIResult(true, fmt.Sprintf("'%s' is sending updates to: %s\n", repo, channels))
 				}
 			},
 		},

@@ -31,6 +31,13 @@ type ChannelInfo struct {
 	conclusions []string
 }
 
+func (c ChannelInfo) String() string {
+	if len(c.conclusions) == 0 {
+		return c.channelID
+	}
+	return fmt.Sprintf("%s (%s)", c.channelID, strings.Join(c.conclusions, ", "))
+}
+
 func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
 	logger = logger.Named("slack-app")
 	return &App{
