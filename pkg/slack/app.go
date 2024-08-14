@@ -2,6 +2,7 @@ package slack
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -12,7 +13,6 @@ import (
 	"github.com/slack-go/slack/socketmode"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/utils/strings/slices"
 )
 
 var repoRegex = regexp.MustCompile("[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?")
@@ -27,15 +27,30 @@ type App struct {
 }
 
 type ChannelInfo struct {
-	channelID   string
-	conclusions []string
+	channelID string
+	filter    *MessageFilter
 }
 
-func (c ChannelInfo) String() string {
-	if len(c.conclusions) == 0 {
-		return c.channelID
+type exposedChannelInfo struct {
+	ChannelID string         `json:"channelID"`
+	Filter    *MessageFilter `json:"messageFilters"`
+}
+
+func (f ChannelInfo) MarshalJSON() ([]byte, error) {
+	return json.Marshal(exposedChannelInfo{
+		ChannelID: f.channelID,
+		Filter:    f.filter,
+	})
+}
+
+func (f *ChannelInfo) UnmarshalJSON(data []byte) error {
+	aux := &exposedChannelInfo{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
 	}
-	return fmt.Sprintf("%s (%s)", c.channelID, strings.Join(c.conclusions, ", "))
+	f.channelID = aux.ChannelID
+	f.filter = aux.Filter
+	return nil
 }
 
 func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
@@ -59,12 +74,12 @@ func (a *App) Disabled() bool {
 }
 
 // Format of channel info string: "<channel_Id>:<conclusion_1>,<conclusion_2>"
-func toChannelInfoString(channelInfo ChannelInfo) string {
-	if len(channelInfo.conclusions) == 0 {
-		return channelInfo.channelID
+func toChannelInfoString(channelInfo ChannelInfo) (string, error) {
+	json, err := json.Marshal(channelInfo)
+	if err != nil {
+		return "", err
 	}
-	conclusionsString := strings.Join(channelInfo.conclusions, ",")
-	return channelInfo.channelID + ":" + conclusionsString
+	return string(json), nil
 }
 
 func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, error) {
@@ -74,23 +89,13 @@ func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, erro
 	} else if data == "" {
 		return nil, nil
 	}
-	channelInfoStrings := strings.Split(data, ";")
+
+	// channelInfoStrings := strings.Split(data, ";")
 	var channelInfos []ChannelInfo
-
-	for _, channelString := range channelInfoStrings {
-		channelID, conclusionsString, _ := strings.Cut(channelString, ":")
-		var conclusions []string
-		for _, conclusion := range strings.Split(conclusionsString, ",") {
-			if len(conclusion) > 0 {
-				conclusions = append(conclusions, conclusion)
-			}
-		}
-		channelInfos = append(channelInfos, ChannelInfo{
-			channelID:   channelID,
-			conclusions: conclusions,
-		})
+	err = json.Unmarshal([]byte(data), &channelInfos)
+	if err != nil {
+		return nil, err
 	}
-
 	return channelInfos, nil
 }
 
@@ -100,31 +105,22 @@ func (a *App) AddChannel(ctx context.Context, repo string, channelInfo ChannelIn
 		return err
 	}
 
-	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
-	supportedConclusions := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
-	var unsupportedConclusions []string
-	for _, c := range channelInfo.conclusions {
-		if !slices.Contains(supportedConclusions, c) {
-			unsupportedConclusions = append(unsupportedConclusions, c)
-		}
-	}
-
-	if len(unsupportedConclusions) > 0 {
-		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
-	}
-
-	var newChannelInfoStrings []string
+	var newChannelInfos []ChannelInfo
 	for _, c := range channelInfos {
 		if c.channelID == channelInfo.channelID {
 			// Skip the old subscription and will replace with the new conclusion filter options
 			continue
 		}
-		newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(c))
+		newChannelInfos = append(newChannelInfos, c)
 	}
-	newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(channelInfo))
-	data := strings.Join(newChannelInfoStrings, ";")
+	newChannelInfos = append(newChannelInfos, channelInfo)
 
-	return a.store.Set(ctx, kvNamespace, repo, data)
+	data, err := json.Marshal(newChannelInfos)
+	if err != nil {
+		return err
+	}
+
+	return a.store.Set(ctx, kvNamespace, repo, string(data))
 }
 
 func (a *App) DelChannel(ctx context.Context, repo string, channelID string) error {
@@ -140,7 +136,11 @@ func (a *App) DelChannel(ctx context.Context, repo string, channelID string) err
 			found = true
 			continue
 		}
-		newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(c))
+		channelInfoString, err := toChannelInfoString(c)
+		if err != nil {
+			return err
+		}
+		newChannelInfoStrings = append(newChannelInfoStrings, channelInfoString)
 	}
 	if !found {
 		return fmt.Errorf("not subscribed to repo")
@@ -228,8 +228,8 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 				result := a.cli.Execute(cliContext, subcommand, args[1:])
 				if result.printToChannel {
 					client.Ack(*e.Request, map[string]interface{}{
-						"response_type": "in_channel",
-						"text":          result.message,
+						// "response_type": "in_channel",
+						"text": "in_channel " + result.message,
 					})
 				}
 				client.Ack(*e.Request, map[string]interface{}{
