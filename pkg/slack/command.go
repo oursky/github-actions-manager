@@ -190,7 +190,7 @@ func DefaultCLI() *CLI {
 
 				channelInfo := ChannelInfo{
 					channelID: env.data.ChannelID,
-					filter:    &filter,
+					filter:    filter,
 				}
 				err = env.app.AddChannel(env.ctx, repo, channelInfo)
 				if err != nil {
@@ -198,7 +198,7 @@ func DefaultCLI() *CLI {
 					return NewCLIResult(false, fmt.Sprintf("Failed to subscribe to *%s*: '%s'\n", repo, err))
 				}
 				if len(filterLayers) > 0 {
-					return NewCLIResult(true, fmt.Sprintf("Subscribe success REPLACE THIS STRING"))
+					return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s* with filter layers %s", repo, channelInfo.filter.filters))
 					// return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s* with filter layers: %s\n", repo, strings.Join(filterLayers, ", ")))
 				} else {
 					return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s*\n", repo))

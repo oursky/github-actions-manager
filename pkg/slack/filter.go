@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -8,20 +9,40 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
-type MessageFilterLayer struct {
-	conclusions []string
+type messageFilterLayer struct {
+	Conclusions []string `json:"conclusions"`
 	// branches    []string
-	workflows []string
-}
-type MessageFilter struct {
-	filters []MessageFilterLayer
+	Workflows []string `json:"workflows"`
 }
 
-func (mfl MessageFilterLayer) Pass(run *jobs.WorkflowRun) bool {
-	if len(mfl.conclusions) > 0 && !slices.Contains(mfl.conclusions, run.Conclusion) {
+type MessageFilter struct {
+	filters []messageFilterLayer
+}
+
+type exposedMessageFilter struct {
+	Filters []messageFilterLayer `json:"filters"`
+}
+
+func (mf MessageFilter) MarshalJSON() ([]byte, error) {
+	return json.Marshal(exposedMessageFilter{
+		Filters: mf.filters,
+	})
+}
+
+func (f *MessageFilter) UnmarshalJSON(data []byte) error {
+	aux := &exposedMessageFilter{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	f.filters = aux.Filters
+	return nil
+}
+
+func (mfl messageFilterLayer) Pass(run *jobs.WorkflowRun) bool {
+	if len(mfl.Conclusions) > 0 && !slices.Contains(mfl.Conclusions, run.Conclusion) {
 		return false
 	}
-	if len(mfl.workflows) > 0 && !slices.Contains(mfl.workflows, run.Name) {
+	if len(mfl.Workflows) > 0 && !slices.Contains(mfl.Workflows, run.Name) {
 		return false
 	}
 	return true
@@ -39,14 +60,11 @@ func (mf MessageFilter) Any(run *jobs.WorkflowRun) bool {
 	return false
 }
 
-func (mfl *MessageFilterLayer) setConclusions(conclusions []string) error {
+func (mfl *messageFilterLayer) setConclusions(conclusions []string) error {
+	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	conclusionsEnum := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
-	// var supportedConclusions, unsupportedConclusions []string
 	var unsupportedConclusions []string
 	for _, c := range conclusions {
-		// if slices.Contains(conclusionsEnum, c) {
-		// 	supportedConclusions = append(supportedConclusions, c)
-		// } else {
 		if !slices.Contains(conclusionsEnum, c) {
 			unsupportedConclusions = append(unsupportedConclusions, c)
 		}
@@ -54,31 +72,36 @@ func (mfl *MessageFilterLayer) setConclusions(conclusions []string) error {
 
 	if len(unsupportedConclusions) > 0 {
 		if slices.Contains(unsupportedConclusions, " ") {
-			return fmt.Errorf("Do not space-separate conclusions. Use format conclusion1,conclusion2")
+			return fmt.Errorf("do not space-separate conclusions. Use format conclusion1,conclusion2")
 		}
 		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
 	}
 
-	mfl.conclusions = conclusions
+	mfl.Conclusions = conclusions
 	return nil
 }
 
-func NewFilter(filterLayers []string) (MessageFilter, error) {
+func NewFilter(filterLayers []string) (*MessageFilter, error) {
 	filter := MessageFilter{
-		filters: []MessageFilterLayer{},
+		filters: []messageFilterLayer{},
 	}
-	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	for _, layer := range filterLayers {
 		definition := strings.Split(layer, ":")
 
-		definition = definition
-		// switch definition[0]
-		// case ""
+		switch len(definition) {
+		case 1: // Assumed format "conclusion1,conclusion2,..."
+			mfl := messageFilterLayer{}
+			conclusions := strings.Split(definition[0], ",")
+			err := mfl.setConclusions(conclusions)
+			if err != nil {
+				return nil, nil
+			}
+			filter.filters = append(filter.filters, mfl)
+		case 2: // Assumed format "filterKey:filterValue1,filterValue2,..."
+		case 3: // Assumed format "filterKey:filterValue1,filterValue2,...:conclusion1,conclusion2,..."
+
+		}
 	}
 
-	return filter, nil
+	return &filter, nil
 }
-
-// func (mf MessageFilter) String() string {
-// 	output = ""
-// }
