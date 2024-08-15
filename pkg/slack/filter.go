@@ -8,27 +8,28 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
-type messageFilterRule struct {
-	conclusions []string
+type MessageFilterRule struct {
+	Conclusions []string `json:"conclusions"`
 	// branches    []string
-	workflows []string
-}
-type MessageFilter struct {
-	whitelists []messageFilterRule
+	Workflows []string `json:"workflows"`
 }
 
-func (rule messageFilterRule) Pass(run *jobs.WorkflowRun) bool {
-	if len(rule.conclusions) > 0 && !slices.Contains(rule.conclusions, run.Conclusion) {
+type MessageFilter struct {
+	Whitelists []MessageFilterRule `json:"whitelists"`
+	// can be extended to include blacklists []messageFilterRule
+}
+
+func (rule MessageFilterRule) Pass(run *jobs.WorkflowRun) bool {
+	if len(rule.Conclusions) > 0 && !slices.Contains(rule.Conclusions, run.Conclusion) {
 		return false
 	}
-	if len(rule.workflows) > 0 && !slices.Contains(rule.workflows, run.Name) {
+	if len(rule.Workflows) > 0 && !slices.Contains(rule.Workflows, run.Name) {
 		return false
 	}
 	return true
 }
-
 func (mf MessageFilter) Any(run *jobs.WorkflowRun) bool {
-	for _, rule := range mf.whitelists {
+	for _, rule := range mf.Whitelists {
 		if rule.Pass(run) {
 			return true
 		}
@@ -36,7 +37,8 @@ func (mf MessageFilter) Any(run *jobs.WorkflowRun) bool {
 	return false
 }
 
-func (rule *messageFilterRule) setConclusions(conclusions []string) error {
+func (rule *MessageFilterRule) setConclusions(conclusions []string) error {
+	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	conclusionsEnum := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
 	// var supportedConclusions, unsupportedConclusions []string
 	var unsupportedConclusions []string
@@ -56,13 +58,13 @@ func (rule *messageFilterRule) setConclusions(conclusions []string) error {
 		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
 	}
 
-	rule.conclusions = conclusions
+	rule.Conclusions = conclusions
 	return nil
 }
 
 func NewFilter(filterLayers []string) (*MessageFilter, error) {
 	filter := MessageFilter{
-		whitelists: []messageFilterRule{},
+		Whitelists: []MessageFilterRule{},
 	}
 	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	for _, layer := range filterLayers {
