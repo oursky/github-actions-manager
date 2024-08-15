@@ -10,17 +10,20 @@ import (
 
 type MessageFilterRule struct {
 	Conclusions []string `json:"conclusions"`
-	// branches    []string
-	Workflows []string `json:"workflows"`
+	Branches    []string `json:"branches"`
+	Workflows   []string `json:"workflows"`
 }
 
 type MessageFilter struct {
-	Whitelists []MessageFilterRule `json:"whitelists"`
+	Whitelists []MessageFilterRule `json:"filters"`
 	// can be extended to include blacklists []messageFilterRule
 }
 
 func (rule MessageFilterRule) Pass(run *jobs.WorkflowRun) bool {
 	if len(rule.Conclusions) > 0 && !slices.Contains(rule.Conclusions, run.Conclusion) {
+		return false
+	}
+	if len(rule.Branches) > 0 && !slices.Contains(rule.Branches, run.Branch) {
 		return false
 	}
 	if len(rule.Workflows) > 0 && !slices.Contains(rule.Workflows, run.Name) {
@@ -37,24 +40,17 @@ func (mf MessageFilter) Any(run *jobs.WorkflowRun) bool {
 	return false
 }
 
-func (rule *MessageFilterRule) setConclusions(conclusions []string) error {
+func (rule *MessageFilterRule) SetConclusions(conclusions []string) error {
 	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	conclusionsEnum := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
-	// var supportedConclusions, unsupportedConclusions []string
 	var unsupportedConclusions []string
 	for _, c := range conclusions {
-		// if slices.Contains(conclusionsEnum, c) {
-		// 	supportedConclusions = append(supportedConclusions, c)
-		// } else {
 		if !slices.Contains(conclusionsEnum, c) {
 			unsupportedConclusions = append(unsupportedConclusions, c)
 		}
 	}
 
 	if len(unsupportedConclusions) > 0 {
-		if slices.Contains(unsupportedConclusions, " ") {
-			return fmt.Errorf("Do not space-separate conclusions. Use format conclusion1,conclusion2")
-		}
 		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
 	}
 
@@ -66,18 +62,56 @@ func NewFilter(filterLayers []string) (*MessageFilter, error) {
 	filter := MessageFilter{
 		Whitelists: []MessageFilterRule{},
 	}
-	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
+
+	used := []string{}
 	for _, layer := range filterLayers {
 		definition := strings.Split(layer, ":")
 
-		definition = definition
-		// switch definition[0]
-		// case ""
+		switch len(definition) {
+		case 1: // Assumed format "conclusion1,conclusion2,..."
+			rule := MessageFilterRule{}
+			if slices.Contains(used, "none") {
+				return nil, fmt.Errorf("duplicated conclusion strings; use commas to separate conclusions")
+			}
+			conclusions := strings.Split(definition[0], ",")
+
+			err := rule.SetConclusions(conclusions)
+			if err != nil {
+				return nil, err
+			}
+
+			used = append(used, "none")
+			filter.Whitelists = append(filter.Whitelists, rule)
+		case 2, 3: // Assumed format "filterKey:filterValue1,filterValue2,..."
+			rule := MessageFilterRule{}
+			filterType := definition[0]
+			if slices.Contains(used, filterType) {
+				return nil, fmt.Errorf("duplicated filter type: %s", filterType)
+			}
+			switch filterType {
+			case "branches":
+				branches := strings.Split(definition[1], ",")
+				rule.Branches = branches
+			case "workflows":
+				workflows := strings.Split(definition[1], ",")
+				rule.Workflows = workflows
+			default:
+				return nil, fmt.Errorf("unsupported filter type: %s", filterType)
+			}
+
+			if len(definition) == 3 {
+				conclusions := strings.Split(definition[2], ",")
+
+				err := rule.SetConclusions(conclusions)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			used = append(used, filterType)
+			filter.Whitelists = append(filter.Whitelists, rule)
+		}
 	}
 
 	return &filter, nil
 }
-
-// func (mf MessageFilter) String() string {
-// 	output = ""
-// }
