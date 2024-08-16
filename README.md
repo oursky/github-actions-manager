@@ -1,7 +1,7 @@
 # Github Actions Manager
 
 This app has three components: the GitHub Action repo, the intermediate server, and the Slack interface.
-It is recommended to create your own repo to test the app, using the 2,000 free hours they give you.
+It is recommended to create your own repo to test the app, using the 2,000 free minutes they give you every month.
 
 ### Running local development server
 
