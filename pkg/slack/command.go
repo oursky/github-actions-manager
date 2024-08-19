@@ -174,8 +174,8 @@ func GetCommands() *[]Command {
 					return NewCLIResult(false, fmt.Sprintf("Invalid repo *%s*\n", repo))
 				}
 
-				filterLayers := array.Unique(env.args[1:])
-				filter, err := NewFilter(filterLayers)
+				filterRuleStrings := array.Unique(env.args[1:])
+				filter, err := ParseAsFilter(filterRuleStrings)
 				if err != nil {
 					env.a.logger.Warn("failed to subscribe", zap.Error(err))
 					return NewCLIResult(false, fmt.Sprintf("Failed to subscribe to *%s*: '%s'\n", repo, err))
@@ -183,15 +183,15 @@ func GetCommands() *[]Command {
 
 				channelInfo := ChannelInfo{
 					ChannelID: env.channelID,
-					Filter:    filter,
+					Filter:    *filter,
 				}
 				err = env.a.AddChannel(env.ctx, repo, channelInfo)
 				if err != nil {
 					env.a.logger.Warn("failed to subscribe", zap.Error(err))
 					return NewCLIResult(false, fmt.Sprintf("Failed to subscribe to *%s*: '%s'\n", repo, err))
 				}
-				if len(filterLayers) > 0 {
-					return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s* with filter layers %s", repo, filter.Whitelists))
+				if len(filterRuleStrings) > 0 {
+					return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s* with filter rules %s", repo, filter.Whitelists))
 				} else {
 					return NewCLIResult(true, fmt.Sprintf("Subscribed to *%s*\n", repo))
 				}

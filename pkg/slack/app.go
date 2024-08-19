@@ -72,6 +72,7 @@ func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, erro
 
 	var channelInfos []ChannelInfo
 	err = json.Unmarshal([]byte(data), &channelInfos)
+
 	if err != nil {
 		return nil, err
 	}

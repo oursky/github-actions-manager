@@ -64,7 +64,7 @@ func (mf MessageFilter) Any(run *jobs.WorkflowRun) bool {
 	return false
 }
 
-func (rule *MessageFilterRule) SetConclusions(conclusions []string) error {
+func ParseConclusions(conclusions []string) ([]string, error) {
 	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
 	conclusionsEnum := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
 	var unsupportedConclusions []string
@@ -75,67 +75,91 @@ func (rule *MessageFilterRule) SetConclusions(conclusions []string) error {
 	}
 
 	if len(unsupportedConclusions) > 0 {
-		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
+		return nil, fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
 	}
 
-	rule.Conclusions = conclusions
-	return nil
+	return conclusions, nil
 }
 
-func NewFilter(filterLayers []string) (*MessageFilter, error) {
-	filter := MessageFilter{
-		Whitelists: []MessageFilterRule{},
+func NewFilterRule(key string, values []string, conclusions []string) (*MessageFilterRule, error) {
+	mfr := &MessageFilterRule{}
+	switch key {
+	case "conclusions":
+	case "workflows":
+		mfr.Workflows = values
+	case "branches":
+		mfr.Branches = values
+	default:
+		return nil, fmt.Errorf("unsupported filter type: %s", key)
+	}
+	conclusions, err := ParseConclusions(conclusions)
+	if err != nil {
+		return nil, err
 	}
 
+	mfr.Conclusions = conclusions
+	return mfr, nil
+}
+
+func NewFilter(whitelists []MessageFilterRule) MessageFilter {
+	return MessageFilter{
+		Whitelists: whitelists,
+	}
+}
+
+func ParseAsFilter(filterRuleStrings []string) (*MessageFilter, error) {
+	whitelists := []MessageFilterRule{}
 	used := []string{}
-	for _, layer := range filterLayers {
-		definition := strings.Split(layer, ":")
+	for _, ruleString := range filterRuleStrings {
+		definition := strings.Split(ruleString, ":")
 
 		switch len(definition) {
 		case 1: // Assumed format "conclusion1,conclusion2,..."
-			rule := MessageFilterRule{}
 			if slices.Contains(used, "none") {
 				return nil, fmt.Errorf("duplicated conclusion strings; use commas to separate conclusions")
 			}
-			conclusions := strings.Split(definition[0], ",")
 
-			err := rule.SetConclusions(conclusions)
+			conclusions := strings.Split(definition[0], ",")
+			rule, err := NewFilterRule("conclusions", []string{}, conclusions)
 			if err != nil {
 				return nil, err
 			}
 
 			used = append(used, "none")
-			filter.Whitelists = append(filter.Whitelists, rule)
-		case 2, 3: // Assumed format "filterKey:filterValue1,filterValue2,..."
-			rule := MessageFilterRule{}
+			whitelists = append(whitelists, *rule)
+		case 2: // Assumed format "filterKey:filterValue1,filterValue2,..."
 			filterType := definition[0]
 			if slices.Contains(used, filterType) {
 				return nil, fmt.Errorf("duplicated filter type: %s", filterType)
 			}
-			switch filterType {
-			case "branches":
-				branches := strings.Split(definition[1], ",")
-				rule.Branches = branches
-			case "workflows":
-				workflows := strings.Split(definition[1], ",")
-				rule.Workflows = workflows
-			default:
-				return nil, fmt.Errorf("unsupported filter type: %s", filterType)
-			}
 
-			if len(definition) == 3 {
-				conclusions := strings.Split(definition[2], ",")
-
-				err := rule.SetConclusions(conclusions)
-				if err != nil {
-					return nil, err
-				}
+			values := strings.Split(definition[1], ",")
+			rule, err := NewFilterRule(filterType, values, []string{})
+			if err != nil {
+				return nil, err
 			}
 
 			used = append(used, filterType)
-			filter.Whitelists = append(filter.Whitelists, rule)
+			whitelists = append(whitelists, *rule)
+		case 3:
+			filterType := definition[0]
+			if slices.Contains(used, filterType) {
+				return nil, fmt.Errorf("duplicated filter type: %s", filterType)
+			}
+
+			values := strings.Split(definition[1], ",")
+			conclusions := strings.Split(definition[2], ",")
+			rule, err := NewFilterRule(filterType, values, conclusions)
+			if err != nil {
+				return nil, err
+			}
+
+			used = append(used, filterType)
+			whitelists = append(whitelists, *rule)
 		}
 	}
+
+	filter := NewFilter(whitelists)
 
 	return &filter, nil
 }
