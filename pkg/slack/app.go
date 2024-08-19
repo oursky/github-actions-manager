@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/kv"
@@ -27,8 +28,8 @@ type App struct {
 }
 
 type ChannelInfo struct {
-	ChannelID string         `json:"channelID"`
-	Filter    *MessageFilter `json:"filter"`
+	ChannelID string        `json:"channelID"`
+	Filter    MessageFilter `json:"filter"`
 }
 
 func (f ChannelInfo) String() string {
@@ -74,7 +75,31 @@ func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, erro
 	err = json.Unmarshal([]byte(data), &channelInfos)
 
 	if err != nil {
-		return nil, err
+		// Maybe it's using the old format? Handle this case
+		channelInfoStrings := strings.Split(data, ";")
+		var channelInfos []ChannelInfo
+
+		for _, channelString := range channelInfoStrings {
+			channelID, conclusionsString, _ := strings.Cut(channelString, ":")
+			var conclusions []string
+			for _, conclusion := range strings.Split(conclusionsString, ",") {
+				if len(conclusion) > 0 {
+					conclusions = append(conclusions, conclusion)
+				}
+			}
+			conclusionRule, err := NewFilterRule("conclusions", []string{}, conclusions)
+			if err != nil {
+				return nil, err
+			}
+
+			filter := NewFilter([]MessageFilterRule{*conclusionRule})
+			channelInfos = append(channelInfos, ChannelInfo{
+				ChannelID: channelID,
+				Filter:    filter,
+			})
+		}
+
+		return channelInfos, nil
 	}
 	return channelInfos, nil
 }
