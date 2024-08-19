@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/oursky/github-actions-manager/pkg/github/jobs"
+	"github.com/samber/lo"
 	"k8s.io/utils/strings/slices"
 )
 
@@ -19,6 +20,28 @@ type MessageFilter struct {
 	// can be extended to include blacklists []messageFilterRule
 }
 
+func (rule MessageFilterRule) String() string {
+	output := ""
+	if len(rule.Conclusions) > 0 {
+		output += fmt.Sprintf("conclusions: %s", rule.Conclusions)
+	}
+	if len(rule.Branches) > 0 {
+		output += fmt.Sprintf("branches: %s", rule.Branches)
+	}
+	if len(rule.Workflows) > 0 {
+		output += fmt.Sprintf("workflows: %s", rule.Workflows)
+	}
+	return output
+}
+
+func (mf MessageFilter) String() string {
+	return fmt.Sprintf("whitelists: %s", fmt.Sprintf("[%s]", strings.Join(lo.Map(mf.Whitelists, func(x MessageFilterRule, _ int) string { return x.String() }), ", ")))
+}
+
+func (mf MessageFilter) Length() int {
+	return len(mf.Whitelists)
+}
+
 func (rule MessageFilterRule) Pass(run *jobs.WorkflowRun) bool {
 	if len(rule.Conclusions) > 0 && !slices.Contains(rule.Conclusions, run.Conclusion) {
 		return false
@@ -31,6 +54,7 @@ func (rule MessageFilterRule) Pass(run *jobs.WorkflowRun) bool {
 	}
 	return true
 }
+
 func (mf MessageFilter) Any(run *jobs.WorkflowRun) bool {
 	for _, rule := range mf.Whitelists {
 		if rule.Pass(run) {
