@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/kv"
 	"github.com/oursky/github-actions-manager/pkg/utils/array"
 	"github.com/slack-go/slack"
@@ -27,15 +28,19 @@ type App struct {
 }
 
 type ChannelInfo struct {
-	ChannelID   string   `json:"channelID"`
-	Conclusions []string `json:"conclusions"`
+	ChannelID string         `json:"channelID"`
+	Filter    *MessageFilter `json:"filter"`
 }
 
 func (f ChannelInfo) String() string {
-	if len(f.Conclusions) == 0 {
+	if f.Filter.Length() == 0 {
 		return f.ChannelID
 	}
-	return fmt.Sprintf("%s with %s", f.ChannelID, f.Conclusions)
+	return fmt.Sprintf("%s with %s", f.ChannelID, f.Filter)
+}
+
+func (f ChannelInfo) ShouldSend(run *jobs.WorkflowRun) bool {
+	return f.Filter.Length() == 0 || f.Filter.Any(run)
 }
 
 func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
@@ -203,11 +208,20 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 
 				switch subcommand {
 				case "subscribe":
-					channelInfo := ChannelInfo{
-						ChannelID:   data.ChannelID,
-						Conclusions: conclusions,
+					filterLayers := array.Unique(args[2:])
+					filter, err := NewFilter(filterLayers)
+					if err != nil {
+						a.logger.Warn("failed to subscribe", zap.Error(err))
+						client.Ack(*e.Request, map[string]interface{}{
+							"text": fmt.Sprintf("Failed to subscribe '%s': %s\n", repo, err),
+						})
 					}
-					err := a.AddChannel(ctx, repo, channelInfo)
+
+					channelInfo := ChannelInfo{
+						ChannelID: data.ChannelID,
+						Filter:    filter,
+					}
+					err = a.AddChannel(ctx, repo, channelInfo)
 					if err != nil {
 						a.logger.Warn("failed to subscribe", zap.Error(err))
 						client.Ack(*e.Request, map[string]interface{}{

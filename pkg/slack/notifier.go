@@ -12,7 +12,6 @@ import (
 	"github.com/slack-go/slack/slackutilsx"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/utils/strings/slices"
 )
 
 type JobsState interface {
@@ -159,7 +158,7 @@ func (n *Notifier) notify(ctx context.Context, run *jobs.WorkflowRun) {
 	}
 
 	for _, channel := range channels {
-		if len(channel.Conclusions) > 0 && !slices.Contains(channel.Conclusions, run.Conclusion) {
+		if channel.ShouldSend(run) {
 			return
 		}
 		err := n.app.SendMessage(ctx, channel.ChannelID, slack.MsgOptionAttachments(slackMsg))
