@@ -2,6 +2,7 @@ package slack
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/oursky/github-actions-manager/pkg/kv"
@@ -155,6 +156,46 @@ func TestSpec(t *testing.T) {
 	})
 	Convey("When receiving webhooks, the bot", t, func() {
 		Convey("has no tests at the moment", func() {
+		})
+	})
+	Convey("When reading the previous (deprecated) format, the bot", t, func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		testStore := kv.NewInMemoryStore()
+		nsSlackSubscriptions := "slack-subscriptions"
+		testApp := &App{
+			logger:      zap.NewNop(),
+			store:       testStore,
+			commandName: testCommand,
+			commands:    GetCommands(),
+		}
+
+		Convey("correctly converts from filterless", func() {
+			testStore.Set(ctx, kv.Namespace(nsSlackSubscriptions), "owner/repo", channelID1)
+
+			response := testApp.Handle(ctx, commandFromChannel1("list owner/repo"))
+			So(response["response_type"], ShouldEqual, "in_channel")
+			So(response["text"], ShouldContainSubstring, channelID1)
+		})
+		Convey("correctly converts from filtered", func() {
+			testStore.Set(ctx, kv.Namespace(nsSlackSubscriptions), "owner/repo", fmt.Sprintf("%s:success,failure", channelID1))
+
+			response := testApp.Handle(ctx, commandFromChannel1("list owner/repo"))
+			So(response["response_type"], ShouldEqual, "in_channel")
+			So(response["text"], ShouldContainSubstring, "success")
+			So(response["text"], ShouldContainSubstring, "failure")
+			So(response["text"], ShouldContainSubstring, channelID1)
+		})
+		Convey("correctly converts from fusion", func() {
+			testStore.Set(ctx, kv.Namespace(nsSlackSubscriptions), "owner/repo", fmt.Sprintf("%s;%s:success,failure", channelID1, channelID2))
+
+			response := testApp.Handle(ctx, commandFromChannel1("list owner/repo"))
+			So(response["response_type"], ShouldEqual, "in_channel")
+			So(response["text"], ShouldContainSubstring, "success")
+			So(response["text"], ShouldContainSubstring, "failure")
+			So(response["text"], ShouldContainSubstring, channelID1)
+			So(response["text"], ShouldContainSubstring, channelID2)
 		})
 	})
 }
