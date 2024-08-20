@@ -53,17 +53,17 @@ func (arg Argument) String() string {
 	if arg.required {
 		return argname
 	} else {
-		return " [" + argname + "]"
+		return "[" + argname + "]"
 	}
 }
 
 func (c Command) String() string {
 	output := fmt.Sprintf("`%s`: %s", c.trigger, c.description)
 	output += fmt.Sprintf("\nUsage of `%s`:", c.trigger)
-	output += fmt.Sprintf("`%s %s`", c.trigger, lo.Reduce(c.arguments,
+	output += fmt.Sprintf("`%s`", lo.Reduce(c.arguments,
 		func(o string, x Argument, _ int) string {
 			return fmt.Sprintf("%s %s", o, x.String())
-		}, ""))
+		}, c.trigger))
 	for _, arg := range c.arguments {
 		output += fmt.Sprintf("\n\t`%s`: %s", arg.name, arg.description)
 	}
