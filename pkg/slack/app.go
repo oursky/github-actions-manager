@@ -55,7 +55,7 @@ func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
 		),
 		store:       store,
 		commandName: config.GetCommandName(),
-		// cli:         NewCLI(logger),
+		commands:    GetCommands(),
 	}
 }
 
