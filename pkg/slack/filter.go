@@ -9,10 +9,23 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
+type Conclusion string
+
+const (
+	ConclusionActionRequired Conclusion = "action_required"
+	ConclusionCancelled      Conclusion = "cancelled"
+	ConclusionFailure        Conclusion = "failure"
+	ConclusionNeutral        Conclusion = "neutral"
+	ConclusionSuccess        Conclusion = "success"
+	ConclusionSkipped        Conclusion = "skipped"
+	ConclusionStale          Conclusion = "stale"
+	ConclusionTimedOut       Conclusion = "timed_out"
+)
+
 type MessageFilterRule struct {
-	Conclusions []string `json:"conclusions"`
-	Branches    []string `json:"branches"`
-	Workflows   []string `json:"workflows"`
+	Conclusions []Conclusion `json:"conclusions"`
+	Branches    []string     `json:"branches"`
+	Workflows   []string     `json:"workflows"`
 }
 
 type MessageFilter struct {
@@ -42,8 +55,8 @@ func (mf MessageFilter) Length() int {
 	return len(mf.Whitelists)
 }
 
-func (rule MessageFilterRule) Pass(run *jobs.WorkflowRun) bool {
-	if len(rule.Conclusions) > 0 && !slices.Contains(rule.Conclusions, run.Conclusion) {
+func (rule MessageFilterRule) Pass(run *jobs.WorkflowRun, conclusion Conclusion) bool {
+	if len(rule.Conclusions) > 0 && !lo.Contains(rule.Conclusions, conclusion) {
 		return false
 	}
 	if len(rule.Branches) > 0 && !slices.Contains(rule.Branches, run.Branch) {
@@ -55,23 +68,53 @@ func (rule MessageFilterRule) Pass(run *jobs.WorkflowRun) bool {
 	return true
 }
 
-func (mf MessageFilter) Any(run *jobs.WorkflowRun) bool {
+func (mf MessageFilter) Any(run *jobs.WorkflowRun) (bool, error) {
+	conclusion, err := NewConclusionFromString(run.Conclusion)
+	if err != nil {
+		return false, fmt.Errorf("Workflow run yielded invalid conclusion: %s", conclusion)
+	}
 	for _, rule := range mf.Whitelists {
-		if rule.Pass(run) {
-			return true
+		if rule.Pass(run, conclusion) {
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
-func ParseConclusions(conclusions []string) ([]string, error) {
+func NewConclusionFromString(str string) (Conclusion, error) {
+	switch str {
+	case "action_required":
+		return ConclusionActionRequired, nil
+	case "cancelled":
+		return ConclusionCancelled, nil
+	case "failure":
+		return ConclusionFailure, nil
+	case "neutral":
+		return ConclusionNeutral, nil
+	case "success":
+		return ConclusionSuccess, nil
+	case "skipped":
+		return ConclusionSkipped, nil
+	case "stale":
+		return ConclusionStale, nil
+	case "timed_out":
+		return ConclusionTimedOut, nil
+	default:
+		return "", fmt.Errorf("unknown conclusion: %s", str)
+	}
+}
+
+func ParseConclusions(conclusionStrings []string) ([]Conclusion, error) {
 	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
-	conclusionsEnum := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
+	// conclusionsEnum := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
+	var conclusions []Conclusion
 	var unsupportedConclusions []string
-	for _, c := range conclusions {
-		if !slices.Contains(conclusionsEnum, c) {
-			unsupportedConclusions = append(unsupportedConclusions, c)
+	for _, c := range conclusionStrings {
+		conclusion, err := NewConclusionFromString(c)
+		if err != nil {
+			return nil, err
 		}
+		conclusions = append(conclusions, conclusion)
 	}
 
 	if len(unsupportedConclusions) > 0 {
@@ -81,7 +124,7 @@ func ParseConclusions(conclusions []string) ([]string, error) {
 	return conclusions, nil
 }
 
-func NewFilterRule(key string, values []string, conclusions []string) (*MessageFilterRule, error) {
+func NewFilterRule(key string, values []string, conclusions []Conclusion) (*MessageFilterRule, error) {
 	mfr := &MessageFilterRule{}
 	switch key {
 	case "conclusions":
@@ -91,10 +134,6 @@ func NewFilterRule(key string, values []string, conclusions []string) (*MessageF
 		mfr.Branches = values
 	default:
 		return nil, fmt.Errorf("unsupported filter type: %s", key)
-	}
-	conclusions, err := ParseConclusions(conclusions)
-	if err != nil {
-		return nil, err
 	}
 
 	mfr.Conclusions = conclusions
@@ -119,7 +158,13 @@ func ParseAsFilter(filterRuleStrings []string) (*MessageFilter, error) {
 				return nil, fmt.Errorf("duplicated conclusion strings; use commas to separate conclusions")
 			}
 
-			conclusions := strings.Split(definition[0], ",")
+			conclusionStrings := strings.Split(definition[0], ",")
+
+			conclusions, err := ParseConclusions(conclusionStrings)
+			if err != nil {
+				return nil, err
+			}
+
 			rule, err := NewFilterRule("conclusions", []string{}, conclusions)
 			if err != nil {
 				return nil, err
@@ -134,7 +179,7 @@ func ParseAsFilter(filterRuleStrings []string) (*MessageFilter, error) {
 			}
 
 			values := strings.Split(definition[1], ",")
-			rule, err := NewFilterRule(filterType, values, []string{})
+			rule, err := NewFilterRule(filterType, values, []Conclusion{})
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +193,13 @@ func ParseAsFilter(filterRuleStrings []string) (*MessageFilter, error) {
 			}
 
 			values := strings.Split(definition[1], ",")
-			conclusions := strings.Split(definition[2], ",")
+			conclusionStrings := strings.Split(definition[2], ",")
+
+			conclusions, err := ParseConclusions(conclusionStrings)
+			if err != nil {
+				return nil, err
+			}
+
 			rule, err := NewFilterRule(filterType, values, conclusions)
 			if err != nil {
 				return nil, err

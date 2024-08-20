@@ -39,8 +39,15 @@ func (f ChannelInfo) String() string {
 	return fmt.Sprintf("%s with %s", f.ChannelID, f.Filter)
 }
 
-func (f ChannelInfo) ShouldSend(run *jobs.WorkflowRun) bool {
-	return f.Filter.Length() == 0 || f.Filter.Any(run)
+func (f ChannelInfo) ShouldSend(run *jobs.WorkflowRun) (bool, error) {
+	if f.Filter.Length() == 0 {
+		return true, nil
+	}
+	result, err := f.Filter.Any(run)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
 }
 
 func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
@@ -81,9 +88,13 @@ func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, erro
 
 		for _, channelString := range channelInfoStrings {
 			channelID, conclusionsString, _ := strings.Cut(channelString, ":")
-			var conclusions []string
-			for _, conclusion := range strings.Split(conclusionsString, ",") {
-				if len(conclusion) > 0 {
+			var conclusions []Conclusion
+			for _, conclusionString := range strings.Split(conclusionsString, ",") {
+				if len(conclusionString) > 0 {
+					conclusion, err := NewConclusionFromString(conclusionString)
+					if err != nil {
+						return nil, err
+					}
 					conclusions = append(conclusions, conclusion)
 				}
 			}
