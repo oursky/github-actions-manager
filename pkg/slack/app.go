@@ -2,18 +2,18 @@ package slack
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/oursky/github-actions-manager/pkg/github/jobs"
 	"github.com/oursky/github-actions-manager/pkg/kv"
-	"github.com/oursky/github-actions-manager/pkg/utils/array"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/utils/strings/slices"
 )
 
 var repoRegex = regexp.MustCompile("[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?")
@@ -24,11 +24,30 @@ type App struct {
 	api         *slack.Client
 	store       kv.Store
 	commandName string
+	commands    *[]Command
 }
 
 type ChannelInfo struct {
-	channelID   string
-	conclusions []string
+	ChannelID string        `json:"channelID"`
+	Filter    MessageFilter `json:"filter"`
+}
+
+func (f ChannelInfo) String() string {
+	if f.Filter.Length() == 0 {
+		return f.ChannelID
+	}
+	return fmt.Sprintf("%s with %s", f.ChannelID, f.Filter)
+}
+
+func (f ChannelInfo) ShouldSend(run *jobs.WorkflowRun) (bool, error) {
+	if f.Filter.Length() == 0 {
+		return true, nil
+	}
+	result, err := f.Filter.Any(run)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
 }
 
 func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
@@ -43,20 +62,12 @@ func NewApp(logger *zap.Logger, config *Config, store kv.Store) *App {
 		),
 		store:       store,
 		commandName: config.GetCommandName(),
+		commands:    GetCommands(),
 	}
 }
 
 func (a *App) Disabled() bool {
 	return a.disabled
-}
-
-// Format of channel info string: "<channel_Id>:<conclusion_1>,<conclusion_2>"
-func toChannelInfoString(channelInfo ChannelInfo) string {
-	if len(channelInfo.conclusions) == 0 {
-		return channelInfo.channelID
-	}
-	conclusionsString := strings.Join(channelInfo.conclusions, ",")
-	return channelInfo.channelID + ":" + conclusionsString
 }
 
 func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, error) {
@@ -66,23 +77,41 @@ func (a *App) GetChannels(ctx context.Context, repo string) ([]ChannelInfo, erro
 	} else if data == "" {
 		return nil, nil
 	}
-	channelInfoStrings := strings.Split(data, ";")
+
 	var channelInfos []ChannelInfo
+	err = json.Unmarshal([]byte(data), &channelInfos)
 
-	for _, channelString := range channelInfoStrings {
-		channelID, conclusionsString, _ := strings.Cut(channelString, ":")
-		var conclusions []string
-		for _, conclusion := range strings.Split(conclusionsString, ",") {
-			if len(conclusion) > 0 {
-				conclusions = append(conclusions, conclusion)
+	if err != nil {
+		// Maybe it's using the old format? Handle this case
+		channelInfoStrings := strings.Split(data, ";")
+		var channelInfos []ChannelInfo
+
+		for _, channelString := range channelInfoStrings {
+			channelID, conclusionsString, _ := strings.Cut(channelString, ":")
+			var conclusions []Conclusion
+			for _, conclusionString := range strings.Split(conclusionsString, ",") {
+				if len(conclusionString) > 0 {
+					conclusion, err := NewConclusionFromString(conclusionString)
+					if err != nil {
+						return nil, err
+					}
+					conclusions = append(conclusions, conclusion)
+				}
 			}
-		}
-		channelInfos = append(channelInfos, ChannelInfo{
-			channelID:   channelID,
-			conclusions: conclusions,
-		})
-	}
+			conclusionRule, err := NewFilterRule("conclusions", []string{}, conclusions)
+			if err != nil {
+				return nil, err
+			}
 
+			filter := NewFilter([]MessageFilterRule{*conclusionRule})
+			channelInfos = append(channelInfos, ChannelInfo{
+				ChannelID: channelID,
+				Filter:    filter,
+			})
+		}
+
+		return channelInfos, nil
+	}
 	return channelInfos, nil
 }
 
@@ -92,31 +121,22 @@ func (a *App) AddChannel(ctx context.Context, repo string, channelInfo ChannelIn
 		return err
 	}
 
-	// Ref: https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#create-a-check-run--parameters
-	supportedConclusions := []string{"action_required", "cancelled", "failure", "neutral", "success", "skipped", "stale", "timed_out"}
-	var unsupportedConclusions []string
-	for _, c := range channelInfo.conclusions {
-		if !slices.Contains(supportedConclusions, c) {
-			unsupportedConclusions = append(unsupportedConclusions, c)
-		}
-	}
-
-	if len(unsupportedConclusions) > 0 {
-		return fmt.Errorf("unsupported conclusions: %s", strings.Join(unsupportedConclusions, ", "))
-	}
-
-	var newChannelInfoStrings []string
+	var newChannelInfos []ChannelInfo
 	for _, c := range channelInfos {
-		if c.channelID == channelInfo.channelID {
+		if c.ChannelID == channelInfo.ChannelID {
 			// Skip the old subscription and will replace with the new conclusion filter options
 			continue
 		}
-		newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(c))
+		newChannelInfos = append(newChannelInfos, c)
 	}
-	newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(channelInfo))
-	data := strings.Join(newChannelInfoStrings, ";")
+	newChannelInfos = append(newChannelInfos, channelInfo)
 
-	return a.store.Set(ctx, kvNamespace, repo, data)
+	data, err := json.Marshal(newChannelInfos)
+	if err != nil {
+		return err
+	}
+
+	return a.store.Set(ctx, kvNamespace, repo, string(data))
 }
 
 func (a *App) DelChannel(ctx context.Context, repo string, channelID string) error {
@@ -125,21 +145,25 @@ func (a *App) DelChannel(ctx context.Context, repo string, channelID string) err
 		return err
 	}
 
-	var newChannelInfoStrings []string
+	var newChannelInfos []ChannelInfo
 	found := false
 	for _, c := range channelInfos {
-		if c.channelID == channelID {
+		if c.ChannelID == channelID {
 			found = true
 			continue
 		}
-		newChannelInfoStrings = append(newChannelInfoStrings, toChannelInfoString(c))
+		newChannelInfos = append(newChannelInfos, c)
 	}
 	if !found {
 		return fmt.Errorf("not subscribed to repo")
 	}
-	data := strings.Join(newChannelInfoStrings, ";")
 
-	return a.store.Set(ctx, kvNamespace, repo, data)
+	data, err := json.Marshal(newChannelInfos)
+	if err != nil {
+		return err
+	}
+
+	return a.store.Set(ctx, kvNamespace, repo, string(data))
 }
 
 func (a *App) SendMessage(ctx context.Context, channel string, options ...slack.MsgOption) error {
@@ -196,74 +220,8 @@ func (a *App) messageLoop(ctx context.Context, client *socketmode.Client) {
 					zap.String("text", data.Text),
 				)
 
-				if data.Command != "/"+a.commandName {
-					client.Ack(*e.Request, map[string]interface{}{
-						"text": fmt.Sprintf("Unknown command '%s'\n", data.Command)})
-					continue
-				}
-
-				args := strings.Split(data.Text, " ")
-				if len(args) < 2 {
-					client.Ack(*e.Request, map[string]interface{}{
-						"text": fmt.Sprintf("Please specify subcommand and repo")})
-					continue
-				}
-
-				repo := args[1]
-				subcommand := args[0]
-				conclusions := array.Unique(args[2:])
-				if !repoRegex.MatchString(repo) {
-					client.Ack(*e.Request, map[string]interface{}{
-						"text": fmt.Sprintf("Invalid repo '%s'\n", repo),
-					})
-					continue
-				}
-
-				switch subcommand {
-				case "subscribe":
-					channelInfo := ChannelInfo{
-						channelID:   data.ChannelID,
-						conclusions: conclusions,
-					}
-					err := a.AddChannel(ctx, repo, channelInfo)
-					if err != nil {
-						a.logger.Warn("failed to subscribe", zap.Error(err))
-						client.Ack(*e.Request, map[string]interface{}{
-							"text": fmt.Sprintf("Failed to subscribe '%s': %s\n", repo, err),
-						})
-					} else {
-						if len(conclusions) > 0 {
-							client.Ack(*e.Request, map[string]interface{}{
-								"response_type": "in_channel",
-								"text":          fmt.Sprintf("Subscribed to '%s' with conclusions: %s\n", repo, strings.Join(conclusions, ", ")),
-							})
-						} else {
-							client.Ack(*e.Request, map[string]interface{}{
-								"response_type": "in_channel",
-								"text":          fmt.Sprintf("Subscribed to '%s'\n", repo),
-							})
-						}
-					}
-
-				case "unsubscribe":
-					err := a.DelChannel(ctx, repo, data.ChannelID)
-					if err != nil {
-						a.logger.Warn("failed to unsubscribe", zap.Error(err))
-						client.Ack(*e.Request, map[string]interface{}{
-							"text": fmt.Sprintf("Failed to unsubscribe '%s': %s\n", repo, err),
-						})
-					} else {
-						client.Ack(*e.Request, map[string]interface{}{
-							"response_type": "in_channel",
-							"text":          fmt.Sprintf("Unsubscribed from '%s'\n", repo),
-						})
-					}
-
-				default:
-					client.Ack(*e.Request, map[string]interface{}{
-						"text": fmt.Sprintf("Unknown subcommand '%s'\n", subcommand),
-					})
-				}
+				response := a.Handle(ctx, data)
+				client.Ack(*e.Request, response)
 
 			default:
 				if e.Type == socketmode.EventTypeHello {

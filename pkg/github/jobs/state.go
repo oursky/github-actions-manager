@@ -33,6 +33,8 @@ type WorkflowRun struct {
 	CommitMessageTitle string
 	CommitURL          string
 
+	Branch string
+
 	Jobs []*WorkflowJob
 }
 
@@ -94,6 +96,8 @@ func newState(runs map[Key]cell[github.WorkflowRun], jobs map[Key]cell[github.Wo
 			StartedAt:          run.GetRunStartedAt().Time,
 			CommitMessageTitle: commitMsgTitle,
 			CommitURL:          commitURL,
+
+			Branch: run.GetHeadBranch(),
 		}
 	}
 	for key, c := range jobs {

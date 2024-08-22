@@ -8,11 +8,12 @@ require (
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/google/go-github/v45 v45.1.0
 	github.com/gorilla/mux v1.8.0
+	github.com/samber/lo v1.47.0
 	github.com/slack-go/slack v0.11.0
 	github.com/smartystreets/goconvey v1.8.1
 	go.uber.org/zap v1.21.0
 	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/sync v0.7.0
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
@@ -87,7 +88,7 @@ require (
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
